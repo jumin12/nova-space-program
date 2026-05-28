@@ -1,0 +1,4532 @@
+# Multiplayer Browser Space Program Game — Design & Architecture Doc
+
+## 1. Working Title
+
+**Project Codename:** *Orbital Frontier*
+
+A multiplayer, browser-based, KSP-inspired space program simulator focused on realistic early rocketry, unmanned exploration, engineering constraints, science progression, missions, research, and cooperative/competitive space programs.
+
+This is not a clone of KSP or KSP2. It should be a legally distinct game inspired by the broad genre of spaceflight construction and orbital simulation.
+
+---
+
+## 2. High-Level Vision
+
+*Orbital Frontier* is a multiplayer space program game where players design, test, fail, research, and launch increasingly capable rockets from basic sounding rockets to early orbital spacecraft.
+
+Unlike KSP’s relatively fast jump to crewed spaceflight, this game focuses heavily on the early game:
+
+* Sounding rockets
+* Uncrewed probes
+* Telemetry and signal constraints
+* Primitive guidance systems
+* Reliability and part failure
+* Atmospheric testing
+* Suborbital milestones
+* First satellite
+* First lunar flyby
+* First lunar impactor
+* First lunar orbiter
+* First soft landing
+* Later crewed missions
+
+The first major playable stage should cover everything equivalent to KSP’s early-to-mid tech progression up to roughly the **90 science tier**, but redesigned around a harder unmanned-first campaign.
+
+---
+
+## 3. Core Design Pillars
+
+### 3.1 Build, Test, Fail, Improve
+
+The player should not go directly from tiny rocket to orbit without testing. Early missions should reward partial success:
+
+* Reach 5 km
+* Reach 20 km
+* Survive max-Q
+* Transmit telemetry
+* Separate a stage
+* Recover instrument data
+* Test an engine under certain conditions
+* Achieve stable attitude control
+* Complete first suborbital trajectory
+* Reach space
+* Reach orbit
+
+Failure should still generate useful engineering data.
+
+### 3.2 Unmanned First
+
+The campaign should begin with probes, telemetry, primitive control, and ground-based science. Crewed missions should be locked behind substantial research, safety systems, life support, heat shielding, recovery systems, and proven launch reliability.
+
+### 3.3 Multiplayer as a First-Class Feature
+
+Players can share the same planet/moon system and space program world. Multiplayer should support:
+
+* Cooperative space agencies
+* Separate agencies on the same server
+* Shared launch facilities
+* Player-built craft visible to others
+* Shared orbital environment
+* Missions and contracts
+* Race-to-milestone competition
+* Spectating launches
+* Rescue/recovery assistance
+
+### 3.4 Browser-First Accessibility
+
+The game runs in a modern browser using TypeScript, WebGPU/WebGL, and server-authoritative multiplayer. No install should be required for basic play.
+
+### 3.5 Simulation Where It Matters
+
+Use realistic-enough orbital and vehicle physics, but avoid trying to fully reproduce every edge case of a desktop physics sandbox. Split simulation modes:
+
+* Rigid-body physics near ground/atmosphere/landing
+* Orbital propagation for stable spaceflight
+* Simplified part-joint simulation
+* Server-authoritative state for multiplayer
+* Client prediction only where safe
+
+---
+
+## 4. Stage-Based Development Plan
+
+## Stage 0 — Prototype Foundation
+
+### Goal
+
+Prove that the browser can support the core loop:
+
+1. Build a simple rocket
+2. Launch it
+3. Simulate thrust, mass, drag, staging
+4. Reach suborbital space
+5. Save telemetry
+6. Show basic multiplayer presence
+
+### Features
+
+* Basic 3D scene
+* One planet with atmosphere
+* Simple rocket made of stack parts
+* Engine thrust and fuel drain
+* Gravity and drag
+* Fixed timestep physics
+* Staging
+* Basic launch UI
+* Basic telemetry panel
+* Multiplayer lobby with spectators
+* Server-authoritative launch simulation prototype
+
+### Not Included
+
+* Full VAB
+* Research tree
+* Missions
+* Moon
+* Advanced joints
+* Time warp
+* Persistent orbital objects
+
+---
+
+## Stage 1 — Early Space Program Campaign
+
+### Goal
+
+Deliver the first complete playable version: one planet, one moon, VAB, research, missions, science, multiplayer, probes, early rockets, and progression up to roughly the KSP 90-science-equivalent tier.
+
+This stage is the first real game.
+
+### World Scope
+
+* One Earth/Kerbin-like planet
+* One Moon/Mun-like moon
+* One primary launch site
+* Optional secondary tracking stations as upgrades
+* Atmosphere on home planet
+* Vacuum moon
+* Simplified terrain collision
+* Basic biomes/science regions
+
+### Gameplay Scope
+
+* Vehicle Assembly Building
+* Research and tech tree
+* Missions/contracts
+* Science collection and transmission
+* Funding/reputation or program points
+* Probe-first progression
+* Early telemetry and communications limits
+* Launch vehicle design
+* Sounding rocket campaigns
+* First satellite
+* First lunar missions
+* Multiplayer agency support
+
+### Stage 1 Progression Theme
+
+The player starts with technology that is barely space-capable:
+
+* No crewed capsules
+* Weak solid motors
+* Primitive liquid engines
+* No reaction wheels initially
+* No solar panels initially
+* Small batteries
+* Simple antennas
+* Basic telemetry experiments
+* Limited guidance
+* Low reliability
+* No maneuver nodes at the start
+* No patched-conic planning at the start
+
+The player must unlock reliable orbital capability step-by-step.
+
+---
+
+# 5. Stage 1 Feature Detail
+
+## 5.1 Vehicle Assembly Building
+
+### Core VAB Requirements
+
+The VAB must support:
+
+* Part list grouped by category
+* Stack attachment
+* Radial attachment
+* Symmetry modes
+* Staging editor
+* Center of mass indicator
+* Center of thrust indicator
+* Center of pressure indicator, once aerodynamics research is unlocked
+* Delta-v estimate, initially locked or approximate
+* Thrust-to-weight estimate
+* Mass, cost, reliability, and power estimates
+* Save/load craft files
+* Share craft with agency/server
+* Multiplayer collaborative editing later
+
+### Part Categories
+
+* Command and control
+* Probe cores
+* Fuel tanks
+* Engines
+* Solid motors
+* Structural parts
+* Decouplers
+* Aerodynamics
+* Science
+* Power
+* Communication
+* Recovery
+* Utility
+
+### Early VAB Limitations
+
+The early game should intentionally restrict the player:
+
+* Maximum vehicle mass
+* Maximum part count
+* Maximum height
+* Limited staging complexity
+* Poor construction tolerances
+* Limited test data means some part stats are approximate
+
+Facility upgrades can improve these limits.
+
+---
+
+## 5.2 Research and Science
+
+### Design Goal
+
+Research should feel like an engineering program, not just collecting points from biomes. The player earns science/engineering data from tests, flights, telemetry, recovered instruments, and milestone completion.
+
+### Science Sources
+
+* Ground tests
+* Static fire tests
+* Atmospheric telemetry
+* High-altitude telemetry
+* Space environment measurements
+* Recovered payloads
+* Lunar flyby data
+* Lunar impact data
+* Lunar orbital scans
+* First soft-landing data
+* Mission milestone bonuses
+
+### Data Types
+
+Instead of one generic science currency, Stage 1 may use either one combined currency or several lightweight categories:
+
+* **Engineering Data:** engines, structures, staging, reliability
+* **Flight Data:** aerodynamics, control, stability
+* **Space Science:** upper atmosphere, vacuum, radiation, lunar studies
+* **Comms Data:** antennas, telemetry, signal processing
+
+For the first implementation, a single science currency is acceptable, but the UI should be designed so typed data can be added later.
+
+---
+
+## 5.3 Early Tech Tree
+
+### Tier 0 — Pre-Space Rocketry
+
+Focus: crude test rockets.
+
+Parts:
+
+* Tiny solid motor
+* Basic nose cone
+* Tiny sounding rocket body
+* Basic fins
+* Barometer
+* Thermometer
+* Short-range telemetry antenna
+* Basic battery
+* Simple parachute
+
+Capabilities:
+
+* Unguided launches
+* Atmospheric measurements
+* Recovery of small payloads
+* No staging or extremely limited staging
+
+Milestones:
+
+* First launch
+* Reach 1 km
+* Reach 5 km
+* Recover payload
+* Transmit first telemetry
+
+### Tier 1 — Sounding Rocketry
+
+Focus: controlled suborbital tests.
+
+Parts:
+
+* Improved solid motors
+* Small liquid engine
+* Small liquid tank
+* Stack decoupler
+* Basic probe core
+* Improved fins
+* Small science bay
+* Low-g accelerometer
+
+Capabilities:
+
+* Basic staging
+* Primitive pitch program
+* Limited control authority
+* Short-duration telemetry
+
+Milestones:
+
+* Reach 20 km
+* Reach 50 km
+* Survive max-Q
+* Perform first staging event
+* Recover science payload
+
+### Tier 2 — Upper Atmosphere Program
+
+Focus: reaching space but not orbit.
+
+Parts:
+
+* Larger solid booster
+* Improved liquid engine
+* Inline reaction control module or primitive attitude package
+* Small radial decoupler
+* Better parachute
+* Longer-range antenna
+* Larger battery
+* Early avionics package
+
+Capabilities:
+
+* More reliable staging
+* Basic attitude hold
+* Simple flight computer commands
+* Suborbital spaceflight
+
+Milestones:
+
+* Reach upper atmosphere
+* Reach space
+* Transmit from space
+* Recover from suborbital flight
+
+### Tier 3 — First Orbital Attempts
+
+Focus: crude orbital launchers.
+
+Parts:
+
+* Orbital-class liquid engine
+* Medium tank
+* Inline decoupler
+* Basic fairing
+* Small vacuum engine
+* First real probe core
+* Basic solar panel or larger battery pack
+* Improved antenna
+
+Capabilities:
+
+* Orbit attempts
+* Basic map view
+* Apoapsis/periapsis readout
+* Primitive maneuver planning, possibly still limited
+* Persistent orbital craft
+
+Milestones:
+
+* First orbital velocity test
+* First stable orbit
+* First satellite
+* First orbit science
+* First controlled deorbit
+
+### Tier 4 — Operational Satellites
+
+Focus: reliable unmanned spaceflight.
+
+Parts:
+
+* Better probe cores
+* Small reaction wheel
+* RCS thrusters
+* Monoprop tank
+* Deployable solar panel
+* Relay antenna
+* Science instruments
+* Improved fairings
+
+Capabilities:
+
+* Better attitude control
+* Comms relay network
+* Maneuver nodes unlocked
+* Orbit prediction improved
+* More reliable orbital missions
+
+Milestones:
+
+* Establish first relay satellite
+* Complete polar orbit
+* Complete high orbit
+* Map home planet
+* Perform orbital rendezvous test target, optional
+
+### Tier 5 — Lunar Flyby and Impact
+
+Focus: first moon missions.
+
+Parts:
+
+* Small transfer stage
+* Improved vacuum engine
+* High-gain antenna
+* Lunar impact probe
+* Radiation detector
+* Improved batteries
+* Lightweight structural parts
+
+Capabilities:
+
+* Patched-conic moon encounters
+* Basic trajectory correction maneuvers
+* Lunar flyby science
+* Lunar impact missions
+
+Milestones:
+
+* Escape home planet SOI or enter moon encounter
+* First lunar flyby
+* First lunar impactor
+* Transmit lunar data
+
+### Tier 6 — Lunar Orbit and Soft Landing
+
+Focus: serious moon operations.
+
+Parts:
+
+* Efficient vacuum engine
+* Landing legs
+* Small throttleable lander engine
+* Radar altimeter
+* Better probe core
+* Larger solar panels
+* Medium relay antenna
+* Surface science package
+
+Capabilities:
+
+* Lunar orbit insertion
+* Powered descent
+* Uncrewed lunar landers
+* Surface science transmission
+
+Milestones:
+
+* First lunar orbit
+* First lunar mapping mission
+* First lunar soft landing
+* First surface transmission
+
+### Tier 7 — Early Crewed Preparation
+
+Focus: preparing for crew, but not necessarily making crew easy.
+
+Parts:
+
+* Test capsule mockup
+* Heat shield prototype
+* Life support test module
+* Launch escape prototype
+* Improved parachutes
+* Crew-rated avionics test package
+
+Capabilities:
+
+* Uncrewed capsule reentry test
+* Recovery testing
+* Safety validation
+* Optional first crewed suborbital mission only after enough reliability milestones
+
+Milestones:
+
+* Test heat shield
+* Test crew capsule reentry uncrewed
+* Test launch escape system
+* Prove launcher reliability
+
+Stage 1 can end here or include the first very limited crewed suborbital/orbital mission as an endgame reward.
+
+---
+
+## 5.4 Missions and Contracts
+
+### Mission Design Philosophy
+
+Missions should guide players through real engineering history-like steps. They should not just say “go to orbit.” They should create pressure to solve specific problems.
+
+### Mission Categories
+
+#### Program Milestones
+
+Large one-time goals:
+
+* First launch
+* First recovered payload
+* First spaceflight
+* First orbit
+* First satellite
+* First lunar flyby
+* First lunar impact
+* First lunar orbit
+* First lunar landing
+
+#### Engineering Tests
+
+Repeatable or semi-repeatable missions:
+
+* Test engine at altitude
+* Test decoupler under acceleration
+* Static fire a new engine
+* Demonstrate stable spin-stabilized flight
+* Demonstrate guided pitch-over
+* Demonstrate controlled reentry
+
+#### Science Missions
+
+* Measure lower atmosphere
+* Measure upper atmosphere
+* Measure vacuum radiation
+* Scan planet from polar orbit
+* Return high-altitude samples
+* Transmit lunar flyby data
+
+#### Commercial/Agency Contracts
+
+* Launch a small payload to suborbital trajectory
+* Place satellite into specific orbit
+* Deploy relay satellite
+* Impact probe on moon
+* Deliver surface science package
+
+#### Multiplayer Missions
+
+* Joint relay network
+* Shared station precursor target
+* Competitive first-to-orbit milestone
+* Cooperative lunar mapping campaign
+* Rescue stranded probe or recover debris
+
+---
+
+## 5.5 Difficulty and Early Game Hardness
+
+### Core Differences from KSP
+
+The early game should be harder and more structured.
+
+Restrictions:
+
+* No starting crewed pod
+* No strong reaction wheels at start
+* No perfect SAS at start
+* Limited antenna range
+* Primitive probes have limited command capability
+* Batteries are heavy and weak
+* Solar power unlocks later
+* Engines have reliability ratings
+* Staging can fail if parts are untested or low quality
+* Aerodynamic instability is a major early challenge
+* Science instruments require power, storage, and/or transmission
+* Reentry survival is not guaranteed
+
+### Flight Computer Progression
+
+Early probes should not behave like perfect pilots.
+
+Possible command levels:
+
+1. **Unguided:** launch only
+2. **Timer Commands:** stage after X seconds, pitch after X seconds
+3. **Primitive Stability:** hold approximate attitude
+4. **Programmed Guidance:** execute pitch program
+5. **Orbital Guidance:** hold prograde/retrograde
+6. **Maneuver Execution:** execute planned burns
+7. **Advanced Autonomy:** handle signal delay and scripted mission events
+
+### Communication Constraints
+
+Early communications should matter.
+
+* Antenna range limits
+* Line-of-sight requirement optional in Stage 1, recommended later
+* Data rate limits
+* Signal blackout during reentry
+* Probe command lockout when out of range, depending on difficulty
+* Relay satellites become important before lunar missions
+
+---
+
+# 6. Physics Design
+
+## 6.1 Simulation Modes
+
+The game should use multiple physics modes rather than one universal simulation.
+
+### Mode A — Active Rigid-Body Flight
+
+Used for:
+
+* Launch
+* Atmospheric flight
+* Landing
+* Crashes
+* Docking/rendezvous proximity
+* Surface operations
+
+Technology:
+
+* Rapier.js or custom rigid-body layer
+* Fixed timestep
+* Simplified part-joint constraints
+* Server authority for multiplayer
+
+### Mode B — Orbital On-Rails Simulation
+
+Used for:
+
+* Stable orbit
+* Time warp
+* Long-duration coast
+* Unloaded vessels
+* Satellites
+* Lunar transfers
+
+Technology:
+
+* Custom TypeScript orbital mechanics module
+* Patched conics for Stage 1
+* Keplerian orbit propagation
+* Sphere of influence transitions
+* Deterministic server-side propagation
+
+### Mode C — Simplified Background Simulation
+
+Used for:
+
+* Remote probes
+* Relay satellites
+* Long-term missions
+* Mission timers
+* Power drain during coast
+
+This should simulate:
+
+* Orbit position over time
+* Battery charge/drain
+* Solar generation
+* Communication status
+* Science data transmission
+* Critical event timers
+
+---
+
+## 6.2 Physics Responsibilities
+
+### Client
+
+* Render prediction
+* Local input collection
+* Camera and UI
+* Temporary visual effects
+* Smooth interpolation
+* Non-authoritative simulation preview in VAB
+
+### Server
+
+* Authoritative vessel state
+* Mission validation
+* Orbital propagation
+* Collision outcome authority
+* Science and reward validation
+* Multiplayer state sync
+* Persistence
+
+---
+
+## 6.3 Rocket Part Physics
+
+### Stage 1 Simplification
+
+Do not simulate every part as a fully independent rigid body all the time.
+
+Recommended approach:
+
+* Treat vessel as a tree of parts
+* Compute aggregate mass, center of mass, moment of inertia, thrust vectors, drag profile
+* Use simplified flex/joint stress model
+* Break parts when stress exceeds limits
+* Use rigid-body physics for whole vessel or major separated assemblies
+
+This is much more browser-friendly than simulating hundreds of constrained rigid bodies.
+
+### Part Failure Model
+
+Each part has:
+
+* Reliability rating
+* Tested/unverified status
+* Max temperature
+* Max dynamic pressure
+* Max acceleration
+* Max joint stress
+* Ignition reliability
+* Burn duration tolerance
+
+Failures can include:
+
+* Engine fails to ignite
+* Engine underperforms
+* Engine explodes
+* Decoupler fails
+* Antenna breaks
+* Battery overheats
+* Parachute rips off
+* Structural joint failure
+
+Failure chance should be tunable by difficulty.
+
+---
+
+## 6.4 Aerodynamics
+
+Stage 1 should use simplified but meaningful aerodynamics.
+
+Model:
+
+* Drag coefficient per part
+* Cross-section area approximation
+* Center of pressure calculation
+* Atmospheric density curve
+* Mach effects simplified
+* Max-Q stress
+* Fin stabilization
+* Nose cone drag reduction
+
+Important gameplay outputs:
+
+* Rockets flip if badly designed
+* Long skinny rockets need fins/control
+* Fairings matter for satellites
+* Max-Q can destroy fragile vehicles
+
+---
+
+## 6.5 Orbital Mechanics
+
+Stage 1 should use patched conics, not full n-body.
+
+Required:
+
+* Position and velocity vectors
+* Apoapsis/periapsis
+* Inclination
+* Time to apoapsis/periapsis
+* Escape trajectory
+* Moon encounter prediction
+* Orbit lines
+* Maneuver nodes after research unlock
+* SOI transitions
+
+Time warp should only run on the orbital solver, not full rigid-body physics.
+
+---
+
+# 7. Multiplayer Design
+
+## 7.1 Multiplayer Modes
+
+### Cooperative Agency
+
+Players share:
+
+* Funding
+* Science
+* Tech tree
+* Facilities
+* Craft library
+* Mission progress
+* Relay network
+
+### Competitive Agencies
+
+Players share the same celestial system but have separate:
+
+* Funding
+* Science
+* Tech tree
+* Missions
+* Launch schedules
+* Craft libraries
+
+### Sandbox Server
+
+All parts unlocked. Focus on building, launching, and playing together.
+
+---
+
+## 7.2 Multiplayer Time Warp Problem
+
+Time warp is the hardest multiplayer design issue.
+
+### Stage 1 Recommendation
+
+Use **agency/world time with scheduled warp votes** or **per-vessel mission instances**.
+
+Options:
+
+#### Option A — Shared World Time
+
+* Everyone exists on the same timeline
+* Time warp requires agreement or admin control
+* Good for realism
+* Bad if many players want independent missions
+
+#### Option B — Mission Instances
+
+* Active launch happens in a mission instance
+* Orbital results are committed to shared world after mission completion
+* Easier for multiplayer
+* Less seamless
+
+#### Option C — Hybrid
+
+Recommended.
+
+* Launches and active flights occur in real time or controlled local warp
+* Stable orbits are propagated analytically on the server
+* Players can request time acceleration for their own mission if it does not conflict with other active events
+* Server resolves event order by universal timestamp
+
+Stage 1 should implement the hybrid model.
+
+---
+
+## 7.3 Network Architecture
+
+### Server Authoritative Model
+
+The server owns:
+
+* Vessel state
+* Physics truth
+* Mission success
+* Science rewards
+* Collisions and destruction
+* Orbit transitions
+* Resource consumption
+
+Clients send:
+
+* Control inputs
+* Staging commands
+* VAB changes
+* Mission selections
+* Camera/spectator preferences
+
+Server broadcasts:
+
+* Vessel transforms
+* Telemetry
+* Events
+* Explosions/destruction
+* Orbit updates
+* Player presence
+
+### Recommended Multiplayer Stack
+
+* Node.js
+* TypeScript
+* Colyseus for rooms/state sync
+* uWebSockets.js for performance later if needed
+* Redis for ephemeral state/cache
+* PostgreSQL for persistence
+
+---
+
+# 8. Software Architecture
+
+## 8.1 Monorepo Layout
+
+```txt
+/apps
+  /client
+    Browser game client
+  /server
+    Authoritative multiplayer server
+  /tools
+    editors, importers, admin tools
+
+/packages
+  /common
+    Shared types, constants, schemas
+  /physics
+    Orbital mechanics, vessel physics, aero models
+  /parts
+    Part definitions and validation
+  /missions
+    Mission definitions and validators
+  /research
+    Tech tree and unlock logic
+  /netcode
+    Shared networking protocol
+  /persistence
+    Database schemas and save models
+  /ui
+    Shared UI components
+```
+
+---
+
+## 8.2 Client Architecture
+
+```txt
+Client App
+├── Renderer
+│   ├── Three.js / WebGPU
+│   ├── TSL shaders
+│   ├── Planet renderer
+│   ├── Vessel renderer
+│   └── Effects renderer
+│
+├── Game UI
+│   ├── Main menu
+│   ├── VAB UI
+│   ├── Launch UI
+│   ├── Map view
+│   ├── Research UI
+│   ├── Mission UI
+│   └── Multiplayer UI
+│
+├── Local Simulation Preview
+│   ├── VAB delta-v calculator
+│   ├── Stability estimates
+│   └── Client-side interpolation
+│
+├── Networking
+│   ├── Server connection
+│   ├── Input commands
+│   ├── State snapshots
+│   └── Event stream
+│
+└── Asset System
+    ├── Part models
+    ├── Textures
+    ├── Audio
+    └── Shader assets
+```
+
+---
+
+## 8.3 Server Architecture
+
+```txt
+Authoritative Server
+├── Auth / Player Sessions
+├── Agency Manager
+├── World Manager
+├── Launch Room Manager
+├── VAB/Craft Service
+├── Mission Service
+├── Research Service
+├── Science Service
+├── Physics Service
+│   ├── Active flight simulation
+│   ├── Orbital propagation
+│   ├── Collision resolution
+│   └── Resource simulation
+├── Persistence Service
+└── Event Log / Replay System
+```
+
+---
+
+## 8.4 Shared Simulation Package
+
+The physics package should be usable both client-side and server-side, but the server is authoritative.
+
+```txt
+/packages/physics
+├── constants.ts
+├── vector.ts
+├── celestialBody.ts
+├── atmosphere.ts
+├── vessel.ts
+├── partTree.ts
+├── thrust.ts
+├── staging.ts
+├── aero.ts
+├── resources.ts
+├── orbital
+│   ├── elements.ts
+│   ├── kepler.ts
+│   ├── patchedConics.ts
+│   ├── maneuver.ts
+│   └── soi.ts
+└── active
+    ├── rigidBodyAdapter.ts
+    ├── jointStress.ts
+    ├── collision.ts
+    └── failure.ts
+```
+
+---
+
+# 9. Data Model
+
+## 9.1 Part Definition
+
+```ts
+type PartDefinition = {
+  id: string;
+  name: string;
+  category: PartCategory;
+  techNode: string;
+  cost: number;
+  mass: number;
+  attachment: AttachmentRules;
+  resources?: ResourceContainer;
+  modules: PartModule[];
+  reliability: ReliabilityStats;
+  thermal: ThermalStats;
+  aero?: AeroStats;
+};
+```
+
+## 9.2 Vessel Definition
+
+```ts
+type VesselDefinition = {
+  id: string;
+  name: string;
+  agencyId: string;
+  rootPartId: string;
+  parts: VesselPartInstance[];
+  stages: StageDefinition[];
+  metadata: {
+    createdBy: string;
+    createdAt: number;
+    version: number;
+  };
+};
+```
+
+## 9.3 Active Vessel State
+
+```ts
+type VesselState = {
+  vesselId: string;
+  mode: "active" | "orbit" | "landed" | "destroyed";
+  bodyId: string;
+  position: Vec3;
+  velocity: Vec3;
+  rotation: Quat;
+  angularVelocity: Vec3;
+  resources: Record<string, number>;
+  activeStage: number;
+  partStates: Record<string, PartRuntimeState>;
+  orbit?: OrbitState;
+};
+```
+
+## 9.4 Mission Definition
+
+```ts
+type MissionDefinition = {
+  id: string;
+  title: string;
+  description: string;
+  prerequisites: MissionRequirement[];
+  objectives: MissionObjective[];
+  rewards: MissionReward[];
+  repeatable: boolean;
+  category: MissionCategory;
+};
+```
+
+---
+
+# 10. Stage 1 Content Plan
+
+## 10.1 Celestial Bodies
+
+### Home Planet
+
+* Radius scaled for gameplay
+* Gravity tuned for fun but realistic enough
+* Atmosphere with density curve
+* Biomes: launch site, lowlands, ocean, mountains, desert, poles, upper atmosphere, space low, space high
+
+### Moon
+
+* Airless
+* Lower gravity
+* Impact and landing missions
+* Biomes: mare, highlands, craters, poles, near side, far side
+
+---
+
+## 10.2 Part Count Target
+
+Stage 1 should include around 70–120 parts.
+
+### Minimum Viable Stage 1 Parts
+
+* 5 probe cores
+* 6 solid motors
+* 6 liquid engines
+* 8 fuel tanks
+* 5 decouplers/separators
+* 5 structural adapters
+* 6 aero parts
+* 8 science instruments
+* 5 antennas
+* 4 batteries
+* 3 solar/power parts
+* 3 parachutes
+* 3 fairing/payload parts
+* 3 landing parts
+* 4 control parts
+* 5 utility parts
+
+---
+
+# 11. UI/UX Design
+
+## 11.1 Main Screens
+
+* Space Center
+* VAB
+* Launchpad
+* Tracking Station
+* Research Lab
+* Mission Control
+* Administration/Agency screen
+* Multiplayer lobby
+
+## 11.2 Flight HUD
+
+Required:
+
+* Altitude
+* Velocity
+* Apoapsis/periapsis
+* Throttle
+* Stage stack
+* Fuel/resource display
+* Attitude indicator
+* Signal status
+* Power status
+* Mission objective tracker
+* Warnings/failures
+
+## 11.3 Map View
+
+Required:
+
+* Planet and moon orbits
+* Vessel orbit line
+* Apoapsis/periapsis markers
+* SOI encounter markers
+* Maneuver nodes after unlock
+* Relay coverage after unlock
+* Time warp controls
+
+---
+
+# 12. Rendering Architecture
+
+## 12.1 Renderer
+
+Recommended:
+
+* Three.js
+* WebGPU where available
+* WebGL fallback if needed
+* TSL for shaders/materials
+* Chunked terrain LOD initially
+* Nanite-style renderer later for static high-detail terrain/assets
+
+## 12.2 Rendering Priorities
+
+Stage 1 should prioritize:
+
+* Stable vessel rendering
+* Clear part highlighting in VAB
+* Good atmosphere visuals
+* Readable orbit lines
+* Scalable terrain rendering
+* Good performance in browser
+
+Avoid over-investing in Nanite-style rendering before the game loop works.
+
+---
+
+# 13. Persistence
+
+Save:
+
+* Player profile
+* Agency state
+* Tech tree unlocks
+* Mission progress
+* Science/funds/reputation
+* Craft files
+* Active vessels
+* Debris
+* Relay satellites
+* World time
+* Event logs
+
+Recommended database:
+
+* PostgreSQL for durable state
+* Redis for live room/session state
+
+---
+
+# 14. Development Milestones
+
+## Milestone A — Flight Physics Prototype
+
+* One rocket
+* Gravity
+* Thrust
+* Drag
+* Fuel
+* Staging
+* Crash detection
+
+## Milestone B — Basic VAB
+
+* Place stack parts
+* Save craft
+* Stage editor
+* Launch craft
+
+## Milestone C — Orbital Prototype
+
+* Orbit detection
+* Apoapsis/periapsis
+* Stable orbit propagation
+* Time warp prototype
+
+## Milestone D — Multiplayer Launch
+
+* Server-authoritative launch
+* Two players watch same launch
+* Input ownership
+* Spectator mode
+
+## Milestone E — Science and Missions
+
+* Mission system
+* Telemetry rewards
+* Science instruments
+* Research unlocks
+
+## Milestone F — Moon
+
+* Moon body
+* SOI transition
+* Flyby
+* Impact
+* Orbit
+* Landing
+
+## Milestone G — Stage 1 Content Complete
+
+* Full early tech tree
+* VAB polish
+* Multiplayer agency state
+* Research UI
+* Mission Control UI
+* Tracking Station
+* Save/load
+
+---
+
+# 15. Recommended Technical Stack
+
+## Client
+
+* TypeScript
+* Vite
+* Three.js
+* React or Solid for UI
+* Zustand or Redux Toolkit for UI state
+* WebGPU/TSL where available
+* WebGL fallback if practical
+
+## Server
+
+* Node.js
+* TypeScript
+* Colyseus
+* PostgreSQL
+* Redis
+* Zod for validation
+
+## Physics
+
+* Custom orbital mechanics package
+* Rapier.js for active rigid-body/collision where needed
+* Custom vessel aggregate physics
+* Fixed timestep simulation
+
+## Tooling
+
+* pnpm monorepo
+* Vitest
+* Playwright for UI tests
+* Docker Compose for local database/server
+* GitHub Actions CI
+
+---
+
+# 16. Major Risks
+
+## 16.1 Scope Creep
+
+A full KSP2-like game is enormous. Stage 1 must stay focused on one planet, one moon, early tech, and unmanned progression.
+
+## 16.2 Multiplayer Time Warp
+
+This must be designed early. Do not bolt multiplayer onto a single-player time system later.
+
+## 16.3 Physics Complexity
+
+Avoid simulating every part as a full rigid body unless absolutely necessary. Use aggregate vessel physics and simplified joint stress.
+
+## 16.4 Browser Performance
+
+Limit part counts, simplify terrain collision, and keep active physics objects low.
+
+## 16.5 Legal/IP Risk
+
+Do not use KSP names, parts, planets, Kerbals, UI layout, art style, branding, or exact tech tree. Make a distinct game in the spaceflight construction genre.
+
+---
+
+# 17. Stage 1 Definition of Done
+
+Stage 1 is complete when players can:
+
+1. Create or join a multiplayer agency.
+2. Build rockets in a VAB.
+3. Launch from a home planet.
+4. Complete missions from sounding rockets to orbit.
+5. Earn science and unlock technology.
+6. Use mostly unmanned probes through early and mid progression.
+7. Establish basic satellite operations.
+8. Perform lunar flyby, impact, orbit, and soft landing missions.
+9. See other players’ launches and persistent vessels.
+10. Save/load crafts and world state.
+11. Play a coherent campaign up to the equivalent of the 90-science tech tier.
+
+---
+
+# 18. Detailed Design Specifications
+
+This section expands the original outline into implementation-ready specifications.
+
+---
+
+# 18.1 Physics Specification
+
+## Design Goal
+
+The physics should preserve the chaotic emergent behavior people associate with KSP:
+
+* Rockets bending under stress
+* Vehicles wobbling
+* Poorly designed rockets flipping
+* Staging accidents
+* Fuel imbalance instability
+* Asymmetric thrust disasters
+* Spinning out of control
+* Structural collapse under aerodynamic load
+* Orbital mechanics exploits and creativity
+
+The browser version should intentionally preserve this style of simulation.
+
+Unlike the earlier simplified recommendation, the final architecture should support per-part vessel physics similar to KSP.
+
+---
+
+## Simulation Layers
+
+### Layer 1 — Part Graph
+
+Every vessel is built as a tree graph.
+
+Each part stores:
+
+* mass
+* inertia tensor
+* attachment nodes
+* drag cube or aero profile
+* thermal state
+* fuel/resources
+* stress state
+* damage state
+* temperature
+* electrical state
+* reliability state
+
+Each connection stores:
+
+* joint type
+* break force
+* break torque
+* flex coefficient
+* damping
+* thermal conduction
+
+---
+
+### Layer 2 — Active Rigid Bodies
+
+Like KSP, active vessels near players use rigid-body simulation.
+
+Implementation:
+
+* Rapier.js custom extended constraints
+* One rigid body per part or grouped assembly
+* Runtime joint solving
+* Constraint stabilization
+* Aerodynamic forces applied per part
+* Fuel slosh approximation later
+
+Part trees can separate into multiple independent vessels.
+
+Example:
+
+* booster separates
+* fairing panels break away
+* debris survives
+* fuel tank explodes
+* landing leg snaps
+
+---
+
+### Layer 3 — Vessel Loading Zones
+
+Physics precision depends on player proximity.
+
+#### Physics Bubble
+
+Full physics simulation runs when:
+
+* near player
+* near active landing
+* near docking
+* near atmosphere
+* near another player
+
+#### Background Mode
+
+Far-away vessels switch to orbital propagation.
+
+This preserves browser/server performance.
+
+---
+
+## Joint Simulation
+
+To preserve KSP-style wobble:
+
+* joints should flex
+* heavy rockets should sway
+* asymmetric loads matter
+* poor bracing causes instability
+
+Joint equations:
+
+* spring constraint
+* damping constraint
+* break thresholds
+
+Large rockets require:
+
+* struts
+* reinforced adapters
+* wider bases
+* careful staging
+
+---
+
+## Aerodynamic Simulation
+
+Each part contributes drag independently.
+
+Per-part calculations:
+
+* drag
+* lift
+* heating
+* pressure stress
+* shielding effects
+
+Rocket stability depends on:
+
+* center of mass
+* center of pressure
+* fin placement
+* payload shape
+* staging geometry
+
+Fairings reduce drag.
+
+Poorly designed rockets should realistically flip.
+
+---
+
+## Thermal System
+
+Each part tracks:
+
+* temperature
+* max temperature
+* heat conduction
+* atmospheric heating
+* engine heating
+* radiative cooling
+
+Failure modes:
+
+* overheating
+* heat shield ablation
+* engine melt
+* battery explosion
+* fuel boiloff later
+
+---
+
+## Fuel System
+
+Resources:
+
+* liquid fuel
+* oxidizer
+* monopropellant
+* solid fuel
+* electric charge
+* science data
+* life support later
+
+Fuel routing:
+
+* crossfeed
+* fuel lines later
+* tank priority
+* residuals later
+
+---
+
+## Orbital Mechanics Specification
+
+Stage 1 uses patched conics.
+
+Required equations:
+
+* Kepler propagation
+* Lambert transfers later
+* SOI transitions
+* maneuver planning
+* conic intersections
+* orbital prediction
+
+Time warp only affects orbital-mode vessels.
+
+---
+
+## Time Warp Specification
+
+This game uses LOCALIZED TIME DOMAINS.
+
+This solves multiplayer.
+
+### Core Rule
+
+A player can independently time warp ONLY when:
+
+* no nearby active players
+* no nearby active vessels
+* not inside another player’s physics bubble
+* not in atmospheric flight near others
+
+### Physics Bubble Rule
+
+Inside a shared bubble:
+
+* all players share real-time simulation
+* no warp above low acceleration
+* docking/landing always real time
+
+### Orbital Warp Rule
+
+Far-away orbital vessels can individually warp.
+
+Server stores:
+
+* universal simulation timestamp
+* vessel local time offset
+* orbital propagation state
+
+The server analytically resolves orbital events.
+
+### Warp Restrictions
+
+Cannot warp when:
+
+* within proximity threshold of another player
+* active atmospheric flight near another player
+* collision prediction imminent
+* multiplayer event active
+* shared mission active
+
+### Warp Levels
+
+* 2x
+* 5x
+* 10x
+* 50x
+* 100x
+* 1000x
+* rails-only high warp
+
+---
+
+# 18.2 Full Tech Tree Specification
+
+## Philosophy
+
+The tech tree should feel like:
+
+* historical aerospace progress
+* engineering struggle
+* unmanned-first progression
+* gradual reliability growth
+
+The player should spend many hours before crewed orbit.
+
+---
+
+## Main Branches
+
+### Rocketry
+
+Unlocks:
+
+* engines
+* fuel tanks
+* staging
+* structural parts
+* fairings
+* high-efficiency vacuum engines
+
+### Guidance
+
+Unlocks:
+
+* primitive control
+* attitude hold
+* maneuver nodes
+* autopilot
+* orbital guidance
+* signal delay compensation
+
+### Materials
+
+Unlocks:
+
+* lighter tanks
+* heat resistance
+* stronger joints
+* larger fairings
+* advanced composites
+
+### Aerodynamics
+
+Unlocks:
+
+* fins
+* nose cones
+* procedural fairings
+* reentry stability
+* lifting surfaces later
+
+### Communications
+
+Unlocks:
+
+* antennas
+* relays
+* high-gain dishes
+* deep-space comms
+* tracking stations
+
+### Power
+
+Unlocks:
+
+* batteries
+* solar panels
+* RTGs later
+* fuel cells later
+
+### Science
+
+Unlocks:
+
+* sensors
+* scanners
+* spectrometers
+* mapping systems
+* seismic equipment
+
+### Crewed Spaceflight
+
+Unlocks:
+
+* capsules
+* life support
+* EVA later
+* docking later
+* habitation later
+
+---
+
+## Example Progression Pace
+
+Expected player flow:
+
+1. Sounding rockets
+2. Repeatable suborbital science
+3. Primitive guidance
+4. Reliable staging
+5. First spaceflight
+6. Orbital attempts
+7. Stable orbit
+8. Relay networks
+9. Lunar probes
+10. Lunar landers
+11. Early crew preparation
+
+Crew should not arrive immediately.
+
+---
+
+# 18.3 Mission Catalog Specification
+
+## Campaign Structure
+
+Missions are grouped into historical-style programs.
+
+---
+
+## Program 1 — Atmospheric Research Initiative
+
+Goals:
+
+* launch sounding rockets
+* gather atmospheric data
+* recover instruments
+
+Key Missions:
+
+* Reach 1 km
+* Reach 5 km
+* Recover barometer data
+* Survive transonic flight
+* Reach upper atmosphere
+
+---
+
+## Program 2 — Guided Rocket Program
+
+Goals:
+
+* stable controlled flight
+* staging
+* primitive guidance
+
+Key Missions:
+
+* Execute programmed pitch-over
+* Demonstrate stage separation
+* Maintain attitude for 30 seconds
+* Recover avionics package
+
+---
+
+## Program 3 — Space Access Program
+
+Goals:
+
+* reach space
+* survive reentry
+* build orbital launcher
+
+Key Missions:
+
+* Cross Karman line
+* Recover payload from space
+* Reach orbital velocity
+* Circularize orbit
+* Maintain orbit 10 minutes
+
+---
+
+## Program 4 — Satellite Operations
+
+Goals:
+
+* communications
+* mapping
+* orbital science
+
+Key Missions:
+
+* Deploy first satellite
+* Maintain power-positive orbit
+* Relay communications
+* Polar mapping mission
+
+---
+
+## Program 5 — Lunar Exploration
+
+Goals:
+
+* flyby
+* impactor
+* orbiter
+* lander
+
+Key Missions:
+
+* Lunar flyby
+* Lunar impact
+* Enter lunar orbit
+* Perform orbital science
+* Land probe safely
+* Transmit surface science
+
+---
+
+# 18.4 Part Catalog Specification
+
+## Stage 1 Part Philosophy
+
+Parts should resemble realistic aerospace hardware categories.
+
+Avoid parody.
+
+---
+
+## Probe Cores
+
+Classes:
+
+* unguided avionics
+* primitive timer controller
+* sounding rocket probe
+* orbital probe core
+* relay probe core
+* lunar guidance computer
+
+Stats:
+
+* power draw
+* control authority
+* signal strength
+* autonomy level
+* mass
+* reliability
+
+---
+
+## Engines
+
+Families:
+
+### Tiny Sounding Rocket Solids
+
+* cheap
+* unstable
+* unguided
+
+### Early Liquid Engines
+
+* low thrust
+* low efficiency
+* poor throttle response
+
+### Orbital Engines
+
+* efficient vacuum operation
+* restart capable later
+
+### Lunar Engines
+
+* deep throttling
+* stable vacuum performance
+
+Stats:
+
+* thrust
+* ISP atmosphere/vacuum
+* ignition reliability
+* gimbal range
+* thermal output
+* pressure tolerance
+
+---
+
+## Structural Parts
+
+* decouplers
+* adapters
+* trusses
+* struts
+* fairings
+* service bays
+
+Each has:
+
+* joint strength
+* drag
+* thermal resistance
+* mass
+
+---
+
+## Science Parts
+
+* thermometer
+* barometer
+* radiation sensor
+* camera
+* seismic package
+* orbital scanner
+* surface sampler
+
+---
+
+# 18.5 Multiplayer Time Warp Full Spec
+
+## Universal Time
+
+The server maintains:
+
+* absolute universal time
+* per-vessel simulation timestamp
+* event ordering
+
+---
+
+## Vessel Ownership
+
+Each vessel has:
+
+* controlling player
+* active crew/probe state
+* warp authority
+* physics state
+
+---
+
+## Warp Domains
+
+### Real-Time Domain
+
+Used for:
+
+* launches
+* landings
+* docking
+* EVA later
+* nearby multiplayer interactions
+
+### Independent Warp Domain
+
+Used for:
+
+* deep-space coasts
+* isolated orbital vessels
+* long transfers
+
+---
+
+## Domain Merge Rule
+
+When two vessels approach:
+
+* time warp collapses
+* both synchronize into real-time
+* players receive warning
+
+---
+
+## Encounter Threshold
+
+Example:
+
+* 50 km orbital threshold
+* atmosphere threshold
+* docking threshold
+* physics bubble threshold
+
+---
+
+## Visual Handling
+
+Warped players appear as:
+
+* predicted orbit ghosts
+* timeline indicators
+* compressed trajectory visualization
+
+---
+
+# 18.6 Database Schema Specification
+
+## Core Tables
+
+### players
+
+* id
+* username
+* account settings
+* achievements
+* codex progress
+
+### agencies
+
+* id
+* owner
+* funds
+* science
+* reputation
+* unlocked tech
+
+### vessels
+
+* id
+* craft data
+* orbital state
+* active state
+* owner
+* timeline state
+
+### missions
+
+* mission progress
+* completion
+* rewards
+
+### codex
+
+* biome discoveries
+* scans
+* science records
+* celestial body data
+* anomalies
+
+---
+
+# 18.7 Codex / Encyclopedia System
+
+## Purpose
+
+The Codex acts as:
+
+* exploration tracker
+* science archive
+* world encyclopedia
+* progression system
+* discovery journal
+
+Inspired by:
+
+* KSP science archives
+* No Man’s Sky discoveries
+* Subnautica PDA
+* Civilization civilopedia
+
+---
+
+## Categories
+
+### Biomes
+
+Tracks:
+
+* visited biomes
+* landed biomes
+* sampled biomes
+* scanned biomes
+
+### Celestial Bodies
+
+Tracks:
+
+* atmosphere
+* gravity
+* orbital parameters
+* discovered anomalies
+* mapping completion
+
+### Science Archive
+
+Tracks:
+
+* experiments completed
+* transmission logs
+* recovered samples
+* historical milestones
+
+### Spacecraft Registry
+
+Tracks:
+
+* launched rockets
+* successful missions
+* failed missions
+* recovered craft
+* firsts
+
+### Multiplayer Discoveries
+
+Optional:
+
+* agency discoveries
+* server-first milestones
+* global achievements
+
+---
+
+## Codex Gameplay Benefits
+
+Completing codex entries can unlock:
+
+* science bonuses
+* funding bonuses
+* agency prestige
+* cosmetic rewards
+* historical records
+
+---
+
+# 18.8 VAB UX Wireframe Specification
+
+## Layout
+
+### Left Panel
+
+* part categories
+* search
+* filters
+
+### Center
+
+* 3D rocket workspace
+* symmetry controls
+* snap tools
+
+### Right Panel
+
+* part details
+* engineering readouts
+* staging editor
+
+### Bottom
+
+* mass
+* delta-v
+* TWR
+* stability estimate
+* reliability estimate
+
+---
+
+## VAB Features
+
+Required:
+
+* undo/redo
+* subassemblies
+* craft sharing
+* multiplayer blueprint sharing
+* engineering warnings
+* launch simulation preview later
+
+---
+
+# 18.9 Networking Protocol Specification
+
+## Snapshot System
+
+Server sends:
+
+* transform snapshots
+* orbital updates
+* event messages
+* part failures
+* stage events
+
+Frequency:
+
+* high for active physics
+* low for orbital rails vessels
+
+---
+
+## Prediction
+
+Client predicts:
+
+* camera motion
+* control smoothing
+* UI feedback
+
+Server resolves:
+
+* actual vessel state
+* collisions
+* explosions
+* resource usage
+
+---
+
+## Compression
+
+Needed for:
+
+* large vessels
+* many debris parts
+* multiplayer launches
+
+Use:
+
+* delta compression
+* interpolation
+* event-driven updates
+
+---
+
+# 18.10 Game Modes
+
+The game should launch with three primary modes.
+
+---
+
+## Career Mode
+
+Features:
+
+* science
+* funding
+* reputation
+* contracts
+* facility upgrades
+* failures
+* progression
+* hardest experience
+
+This is the intended flagship mode.
+
+---
+
+## Science Mode
+
+Features:
+
+* all facilities unlocked
+* science progression still active
+* no funding constraints
+* easier experimentation
+
+---
+
+## Sandbox Mode
+
+Features:
+
+* all parts unlocked
+* unrestricted building
+* unlimited funds
+* multiplayer sandbox servers
+* pure creativity mode
+
+---
+
+# 18.11 Facility Upgrade System
+
+Facilities upgrade over time.
+
+## Launchpad
+
+Improves:
+
+* max rocket mass
+* structural tolerance
+* launch reliability
+
+## VAB
+
+Improves:
+
+* max part count
+* build complexity
+* symmetry tools
+
+## Tracking Station
+
+Improves:
+
+* comm range
+* map precision
+* maneuver planning
+
+## Research Center
+
+Improves:
+
+* science efficiency
+* concurrent projects
+* unlock speed
+
+---
+
+# 18.12 Long-Term Expansion Plan
+
+After Stage 1:
+
+## Stage 2
+
+* docking
+* stations
+* EVA
+* life support
+* crew systems
+* reusable launch vehicles
+
+## Stage 3
+
+* additional planets
+* interplanetary transfers
+* nuclear propulsion
+* colonies
+* ISRU
+
+## Stage 4
+
+* procedural star systems
+* multiplayer economies
+* player-built launch sites
+* advanced automation
+
+---
+
+# 18.13 Final Technical Recommendation
+
+## Core Philosophy
+
+Do not optimize too early.
+
+First make:
+
+* rockets fun
+* launches chaotic
+* staging satisfying
+* orbital mechanics readable
+* multiplayer stable
+
+Then scale rendering and terrain later.
+
+The emotional experience matters more than perfect realism.
+
+The player should:
+
+* fear max-Q
+* celebrate orbit
+* lose probes
+* build ugly unstable rockets
+* improvise solutions
+* slowly industrialize spaceflight
+
+That is the heart of the game.
+
+---
+
+# 19. Engineering-Level Design Documents
+
+This section turns the game design into lower-level implementation architecture.
+
+---
+
+# 19.1 Physics Engine Architecture Spec
+
+## Goal
+
+Build a browser-capable physics system that feels similar to KSP-style part-based rockets:
+
+* each part has mass and forces
+* joints flex and can break
+* poor designs wobble
+* staging physically separates craft
+* debris persists
+* aero forces affect individual parts
+* engines apply thrust at real positions
+* asymmetric thrust causes torque
+
+The physics should prioritize believable, emergent behavior over perfect real-world simulation.
+
+---
+
+## Physics Engine Layers
+
+### Layer A — Math Core
+
+Shared deterministic math utilities:
+
+* Vec3
+* Quat
+* Mat3
+* Transform
+* inertia tensor helpers
+* orbital element conversions
+* fixed timestep utilities
+
+All physics code should use the same math package.
+
+---
+
+### Layer B — Part Runtime
+
+Each part is represented at runtime by:
+
+```ts
+type RuntimePart = {
+  id: string;
+  definitionId: string;
+  parentId?: string;
+  childIds: string[];
+
+  localTransform: Transform;
+  worldTransform: Transform;
+
+  mass: number;
+  dryMass: number;
+  resourceMass: number;
+  inertiaTensor: Mat3;
+
+  temperature: number;
+  damage: number;
+  destroyed: boolean;
+
+  resources: ResourceContainer;
+  modules: RuntimePartModule[];
+
+  rigidBodyHandle?: number;
+  colliderHandles: number[];
+  jointHandles: number[];
+};
+```
+
+---
+
+### Layer C — Vessel Runtime
+
+A vessel contains:
+
+```ts
+type RuntimeVessel = {
+  id: string;
+  ownerPlayerId?: string;
+  agencyId: string;
+
+  parts: Map<string, RuntimePart>;
+  rootPartId: string;
+  stages: RuntimeStage[];
+
+  simulationMode: "active-rigid" | "packed-orbit" | "landed" | "destroyed";
+
+  bodyId: string;
+  referenceFrame: ReferenceFrame;
+
+  centerOfMass: Vec3;
+  totalMass: number;
+  aggregateInertia: Mat3;
+
+  orbit?: OrbitState;
+  timeline: VesselTimelineState;
+};
+```
+
+---
+
+### Layer D — Active Rigid Physics
+
+Used for:
+
+* launch
+* atmospheric flight
+* landing
+* docking proximity
+* collisions
+* nearby multiplayer
+* explosions
+
+Implementation options:
+
+1. Rapier.js/WASM for rigid bodies and constraints
+2. Custom TypeScript constraint solver for vessels only
+3. Hybrid: Rapier for collisions, custom joints for rocket flex
+
+Recommended initial implementation:
+
+* Rapier for rigid bodies, colliders, broadphase, contact resolution
+* custom vessel joint stress layer on top
+* custom aero and engine forces
+
+---
+
+### Layer E — Packed Orbital Physics
+
+Used for:
+
+* stable orbits
+* high time warp
+* unloaded vessels
+* long coasts
+* background satellites
+
+Packed vessels do not simulate every part as active rigid bodies.
+
+They preserve:
+
+* part state
+* resources
+* power
+* science data
+* orbit
+* scheduled events
+
+They do not solve:
+
+* per-frame joint wobble
+* collision contact
+* aerodynamic forces unless reentering
+
+---
+
+## Active Physics Step Order
+
+Each fixed physics tick:
+
+1. Read player/server input commands.
+2. Apply staging commands.
+3. Update resource flow.
+4. Update engine thrust.
+5. Apply thrust forces at engine positions.
+6. Apply gravity to all bodies.
+7. Calculate atmosphere density at each part.
+8. Apply aero drag/lift/heating per part.
+9. Update thermal conduction and radiation.
+10. Solve rigid-body physics.
+11. Evaluate joint stress and flex.
+12. Break failed joints.
+13. Split disconnected vessel graphs.
+14. Detect collisions and impacts.
+15. Apply damage/explosions.
+16. Update telemetry/science/mission events.
+17. Emit authoritative snapshot.
+
+---
+
+## Fixed Timestep
+
+Recommended:
+
+* physics tick: 30 Hz server baseline
+* optional 60 Hz for local single-player or small active scenes
+* render interpolation: client-side
+* high-load fallback: reduce solver iterations, not tick consistency
+
+Example:
+
+```ts
+const FIXED_DT = 1 / 30;
+```
+
+---
+
+## Joint Model
+
+Each attachment joint has:
+
+```ts
+type RuntimeJoint = {
+  parentPartId: string;
+  childPartId: string;
+
+  anchorParent: Vec3;
+  anchorChild: Vec3;
+
+  linearStiffness: number;
+  angularStiffness: number;
+  damping: number;
+
+  breakForce: number;
+  breakTorque: number;
+
+  accumulatedStress: number;
+  failed: boolean;
+};
+```
+
+### Wobble Behavior
+
+To create KSP-like wobble:
+
+* joints should not be infinitely stiff
+* tall rockets should bend
+* heavy payloads should stress lower joints
+* radial boosters should flex
+* struts should reduce flex
+
+### Joint Failure
+
+A joint fails when:
+
+* force exceeds breakForce
+* torque exceeds breakTorque
+* accumulated fatigue exceeds threshold
+* temperature weakens joint below load
+* collision shock exceeds structural rating
+
+---
+
+## Engine Force Model
+
+Each engine applies force at its nozzle transform.
+
+```ts
+force = thrustDirection * currentThrust;
+torque = cross(enginePosition - centerOfMass, force);
+```
+
+Engine state includes:
+
+* throttle
+* ignition state
+* fuel availability
+* atmosphere pressure
+* gimbal angle
+* reliability
+* heat output
+
+Failures:
+
+* no ignition
+* hard start explosion
+* thrust loss
+* stuck throttle
+* gimbal lock
+* overheating
+
+---
+
+## Aero Force Model
+
+Per part:
+
+```txt
+q = 0.5 * density * velocity^2
+Drag = q * Cd * area
+Lift = q * Cl * area
+```
+
+Each part has:
+
+* drag coefficient
+* lift coefficient
+* exposed area
+* occlusion/shielding state
+* max dynamic pressure
+
+Fairings and cargo bays shield enclosed parts.
+
+---
+
+## Damage Model
+
+Damage sources:
+
+* impact
+* overheating
+* overpressure
+* aerodynamic stress
+* joint stress
+* engine explosion
+
+Damage effects:
+
+* part destroyed
+* resource leak
+* reduced engine thrust
+* antenna disabled
+* solar panel disabled
+* joint weakened
+
+---
+
+## Vessel Splitting
+
+When joints break or decouplers fire:
+
+1. Build graph of connected parts.
+2. Find connected components.
+3. Create one RuntimeVessel per component.
+4. Transfer velocities and angular velocities.
+5. Assign ownership and vessel type.
+6. Mark debris if no command/control part exists.
+
+---
+
+# 19.2 Netcode and Determinism Spec
+
+## Core Rule
+
+The server is authoritative.
+
+Clients never decide:
+
+* mission completion
+* science rewards
+* collisions
+* destruction
+* orbit commits
+* resource truth
+* other players’ vessel states
+
+---
+
+## Networking Model
+
+### Client Sends Commands
+
+```ts
+type ClientCommand =
+  | { type: "setThrottle"; value: number; tick: number }
+  | { type: "setAttitudeInput"; pitch: number; yaw: number; roll: number; tick: number }
+  | { type: "stage"; tick: number }
+  | { type: "toggleSAS"; enabled: boolean; tick: number }
+  | { type: "activatePart"; partId: string; action: string; tick: number }
+  | { type: "requestWarp"; warpRate: number };
+```
+
+### Server Sends Snapshots
+
+```ts
+type VesselSnapshot = {
+  serverTick: number;
+  vesselId: string;
+  mode: VesselSimulationMode;
+  bodyId: string;
+  partTransforms?: PartTransformSnapshot[];
+  aggregateTransform?: Transform;
+  velocity: Vec3;
+  angularVelocity: Vec3;
+  resources: ResourceSnapshot;
+  events: ServerEvent[];
+};
+```
+
+---
+
+## Snapshot Rates
+
+Recommended:
+
+* active nearby vessel: 15–30 snapshots/sec
+* distant active vessel: 5–10 snapshots/sec
+* packed orbital vessel: event-based or 1/sec
+* map-only vessel: orbit elements only
+
+---
+
+## Client Prediction
+
+Clients may predict:
+
+* local input feel
+* throttle response
+* camera movement
+* UI readouts
+* vessel motion between snapshots
+
+Clients should not permanently commit predicted results.
+
+---
+
+## Reconciliation
+
+When authoritative snapshot arrives:
+
+1. Compare predicted state to server state.
+2. If error is small, smooth correction.
+3. If error is large, snap or replay recent inputs.
+4. Always trust server for destruction/failure events.
+
+---
+
+## Determinism Strategy
+
+Full deterministic physics across browsers is not guaranteed.
+
+Therefore:
+
+* do not rely on lockstep multiplayer physics
+* server runs truth simulation
+* clients interpolate
+* replays store commands plus authoritative checkpoints
+* important results are event-sourced
+
+---
+
+## Multiplayer Time Warp Determinism
+
+Time warp is handled analytically by server.
+
+The server stores:
+
+```ts
+type VesselTimelineState = {
+  localTime: number;
+  universalTimeAnchor: number;
+  warpRate: number;
+  domainId: string;
+  canWarp: boolean;
+};
+```
+
+Vessels in different warp domains may advance independently.
+
+When domains merge:
+
+* future events are resolved by timestamp
+* vessels are propagated to common sync time
+* active physics begins only after synchronization
+
+---
+
+## Anti-Cheat
+
+Server validates:
+
+* available fuel
+* throttle limits
+* staging order
+* unlocked parts
+* craft mass/cost
+* mission requirements
+* science validity
+* warp permissions
+
+---
+
+# 19.3 Performance Budget Spec
+
+## Target Platforms
+
+Minimum target:
+
+* modern desktop browser
+* WebGL2 or WebGPU
+* 8 GB RAM
+* mid-range CPU
+
+Ideal target:
+
+* WebGPU-capable desktop browser
+* hardware acceleration
+* 16 GB RAM
+
+Mobile is not a Stage 1 target.
+
+---
+
+## Performance Targets
+
+### Client
+
+* 60 FPS in VAB
+* 60 FPS in map view
+* 30–60 FPS during active launch
+* under 200 ms initial interaction delay
+* under 5 seconds typical scene load after assets cached
+
+### Server
+
+Per active physics room:
+
+* 30 Hz physics simulation
+* 2–8 nearby players
+* 1–4 active vessels
+* 100–300 active rigid parts target
+* 500+ packed orbital objects allowed
+
+---
+
+## Part Count Budgets
+
+### Stage 1 Recommended Limits
+
+Career early game:
+
+* 20–80 parts per craft
+
+Career late Stage 1:
+
+* 100–150 parts per craft
+
+Sandbox:
+
+* soft warning after 150 parts
+* hard server setting, default 250 parts
+
+---
+
+## Active Physics Budget
+
+Per active vessel:
+
+* ideal: under 100 active rigid bodies
+* acceptable: 150 active rigid bodies
+* high risk: 250+ active rigid bodies
+
+Optimization option:
+
+* group rigid parts within a stack when flex is visually insignificant
+* keep boosters/large modules as separate rigid clusters
+* simulate high-stress joints only
+
+---
+
+## Network Budget
+
+Target bandwidth:
+
+* local player active vessel: 50–150 KB/s
+* spectator: 20–80 KB/s
+* orbital map state: under 10 KB/s
+
+Optimization:
+
+* delta snapshots
+* quantized transforms
+* event messages instead of full state where possible
+* lower update rate for distant vessels
+
+---
+
+## Memory Budget
+
+Client memory targets:
+
+* Stage 1 scene: under 1.5 GB
+* cached assets: under 2 GB
+* active physics world: under 500 MB
+
+Server memory targets:
+
+* per active room: under 512 MB
+* packed world state stored compactly
+
+---
+
+## Physics Degradation Strategy
+
+When overloaded:
+
+1. Reduce visual debris lifetime.
+2. Reduce distant snapshot rate.
+3. Pack non-critical debris into orbital mode.
+4. Lower solver iterations for non-player debris.
+5. Disable minor part flex on distant vessels.
+6. Refuse new large launches if server room limit exceeded.
+
+Never silently change mission-critical physics for the active player without UI warning.
+
+---
+
+# 19.4 ECS and Data-Oriented Design Spec
+
+## Why ECS
+
+This game has many systems operating on many entities:
+
+* physics
+* rendering
+* resources
+* heat
+* science
+* missions
+* networking
+* damage
+* audio
+* UI indicators
+
+An ECS/data-oriented approach keeps systems modular and performant.
+
+---
+
+## Entity Types
+
+* Player
+* Agency
+* Vessel
+* Part
+* Joint
+* ResourceContainer
+* CelestialBody
+* Mission
+* ScienceExperiment
+* CodexEntry
+* LaunchSite
+* TerrainChunk
+
+---
+
+## Core Components
+
+### TransformComponent
+
+* position
+* rotation
+* scale
+* reference frame
+
+### PhysicsBodyComponent
+
+* mass
+* inertia
+* velocity
+* angular velocity
+* rigid body handle
+
+### PartComponent
+
+* part definition id
+* vessel id
+* parent part id
+* module list
+
+### JointComponent
+
+* parent part
+* child part
+* stiffness
+* damping
+* stress
+* break thresholds
+
+### ResourceComponent
+
+* resource amounts
+* capacity
+* flow rules
+
+### ThermalComponent
+
+* temperature
+* max temperature
+* conductivity
+* heat generation
+
+### AeroComponent
+
+* drag profile
+* lift profile
+* exposed area
+* shielding state
+
+### NetworkReplicatedComponent
+
+* replication priority
+* last sent tick
+* snapshot dirty flags
+
+---
+
+## System Order
+
+Server tick order:
+
+1. CommandInputSystem
+2. StagingSystem
+3. ResourceFlowSystem
+4. EngineSystem
+5. AeroSystem
+6. GravitySystem
+7. PhysicsStepSystem
+8. JointStressSystem
+9. ThermalSystem
+10. DamageSystem
+11. VesselSplitSystem
+12. MissionValidationSystem
+13. ScienceSystem
+14. CodexSystem
+15. ReplicationSystem
+16. PersistenceCheckpointSystem
+
+---
+
+## Data Layout
+
+For hot systems, use arrays rather than nested objects.
+
+Example:
+
+```ts
+type PhysicsSoA = {
+  entityIds: Uint32Array;
+  px: Float64Array;
+  py: Float64Array;
+  pz: Float64Array;
+  vx: Float64Array;
+  vy: Float64Array;
+  vz: Float64Array;
+  mass: Float64Array;
+};
+```
+
+Use object-rich structures for authoring, but convert to compact runtime arrays.
+
+---
+
+# 19.5 WASM / Rust Integration Plan
+
+## Why WASM
+
+Heavy physics and orbital math may exceed comfortable JS performance.
+
+Use WASM for:
+
+* constraint solving
+* collision acceleration
+* orbital propagation batches
+* terrain collision queries
+* large matrix/vector operations
+
+---
+
+## Stage 1 Approach
+
+Start with TypeScript plus Rapier.js.
+
+Only add custom Rust/WASM once bottlenecks are measured.
+
+---
+
+## Candidate WASM Modules
+
+### physics_core_wasm
+
+Responsibilities:
+
+* joint solver
+* stress calculation
+* rigid cluster updates
+* force integration
+
+### orbit_core_wasm
+
+Responsibilities:
+
+* propagate many orbits
+* SOI prediction
+* maneuver solving
+* encounter search
+
+### terrain_query_wasm
+
+Responsibilities:
+
+* height sampling
+* raycasts
+* collision queries
+* biome lookup
+
+---
+
+## Rust API Shape
+
+```ts
+type WasmPhysicsInput = {
+  partBuffer: Float64Array;
+  jointBuffer: Float64Array;
+  forceBuffer: Float64Array;
+  dt: number;
+};
+```
+
+Keep data transfer minimal.
+
+Avoid passing thousands of JS objects across the WASM boundary.
+
+---
+
+## WASM Rules
+
+* transfer typed arrays, not objects
+* batch calls
+* avoid per-part JS/WASM calls
+* keep server and client module versions identical
+* store deterministic checkpoints
+
+---
+
+# 19.6 Terrain and Planet Rendering Spec
+
+## Rendering Goals
+
+Stage 1 needs:
+
+* one beautiful home planet
+* one moon
+* readable terrain
+* launch site
+* biome visualization
+* map view orbit clarity
+* stable performance
+
+---
+
+## Planet Coordinate System
+
+Use double precision simulation coordinates server-side.
+
+Client uses floating origin.
+
+Coordinate layers:
+
+* universe frame
+* celestial body frame
+* local tangent frame
+* render frame
+
+---
+
+## Floating Origin
+
+The camera remains near origin.
+
+As the player moves:
+
+* world origin shifts
+* nearby objects are rebased
+* far objects render using relative transforms
+* physics uses local frame for active bubble
+
+---
+
+## Terrain System
+
+Stage 1 recommended:
+
+* cube-sphere planet mesh
+* quadtree LOD
+* procedural heightmap
+* biome map
+* collision heightfield chunks near surface
+
+Later:
+
+* Nanite-style virtualized terrain
+* streamed high-detail meshes
+* caves/anomalies
+
+---
+
+## Terrain Collision
+
+Do not collide against visual Nanite geometry.
+
+Use separate physics collision:
+
+* heightfield chunks
+* simplified meshes
+* launch site colliders
+* anomaly colliders
+
+Collision detail increases near active players.
+
+---
+
+## Biome and Scan Data
+
+Each terrain coordinate can return:
+
+* biome id
+* altitude
+* slope
+* temperature band
+* resource hint later
+* discovered/scanned state
+
+This feeds the Codex.
+
+---
+
+## Atmosphere Rendering
+
+Use shader-based atmosphere:
+
+* scattering approximation
+* horizon glow
+* altitude fade
+* sunrise/sunset color
+
+TSL/WebGPU preferred where available.
+
+---
+
+# 19.7 Threading and Worker Architecture
+
+## Goal
+
+Keep the browser responsive.
+
+Heavy work should not block rendering or UI.
+
+---
+
+## Client Threads
+
+### Main Thread
+
+* UI
+* renderer coordination
+* input
+* audio
+
+### Physics Worker
+
+* local prediction
+* VAB simulation estimates
+* non-authoritative physics preview
+
+### Orbit Worker
+
+* orbit line generation
+* maneuver previews
+* encounter search
+
+### Asset Worker
+
+* mesh processing
+* compression decoding
+* terrain chunk generation
+
+---
+
+## Server Workers
+
+Use room-level isolation.
+
+Possible model:
+
+* one Node process manages networking
+* worker threads run active physics rooms
+* separate workers handle orbit propagation batches
+* database writes are async queued
+
+---
+
+## SharedArrayBuffer
+
+Optional advanced optimization.
+
+Can be used for:
+
+* transform buffers
+* physics state buffers
+* worker communication
+
+Requires correct cross-origin isolation headers.
+
+---
+
+## Worker Messaging Rules
+
+* use typed arrays
+* avoid high-frequency object serialization
+* batch updates
+* transfer buffers where possible
+* use snapshot IDs/ticks
+
+---
+
+# 19.8 Save, Replay, and Determinism Spec
+
+## Save Philosophy
+
+Saves should preserve:
+
+* world state
+* vessel state
+* timeline state
+* agency progress
+* codex progress
+* mission progress
+* event history
+
+---
+
+## Save Types
+
+### Manual Save
+
+Player-triggered.
+
+### Autosave
+
+Before:
+
+* launch
+* staging event
+* SOI transition
+* landing
+* impact
+* mission completion
+* warp domain merge
+
+### Server Checkpoint
+
+Periodic authoritative world snapshot.
+
+---
+
+## Vessel Save State
+
+```ts
+type VesselSaveState = {
+  vesselId: string;
+  definition: VesselDefinition;
+  simulationMode: VesselSimulationMode;
+  bodyId: string;
+  transform?: Transform;
+  velocity?: Vec3;
+  angularVelocity?: Vec3;
+  orbit?: OrbitState;
+  resources: ResourceSnapshot;
+  partStates: Record<string, PartSaveState>;
+  timeline: VesselTimelineState;
+};
+```
+
+---
+
+## Replay System
+
+Replays are useful for:
+
+* mission review
+* debugging
+* multiplayer disputes
+* cinematic playback
+* crash reports
+
+Replay data:
+
+* initial state checkpoint
+* player commands
+* server events
+* periodic authoritative snapshots
+* random seeds
+
+Do not rely on perfect deterministic replay alone.
+
+Use checkpoints to correct drift.
+
+---
+
+## Event Log
+
+Important events are recorded:
+
+* launch
+* staging
+* engine ignition
+* engine failure
+* joint break
+* part explosion
+* orbit achieved
+* SOI transition
+* mission completion
+* science collected
+* codex discovery
+
+---
+
+## Save Compatibility
+
+Every save includes:
+
+* game version
+* part database version
+* physics version
+* celestial body version
+* migration version
+
+Use migrations for old saves.
+
+---
+
+# 19.9 Implementation Roadmap for Engineering Systems
+
+## Phase 1 — TypeScript Prototype
+
+* simple part graph
+* basic thrust/gravity/drag
+* basic VAB
+* basic staging
+* simple orbit detection
+
+## Phase 2 — Per-Part Physics
+
+* Rapier rigid bodies
+* attachment joints
+* joint breakage
+* vessel splitting
+* aero per part
+
+## Phase 3 — Server Authority
+
+* Colyseus rooms
+* command input
+* snapshots
+* client interpolation
+* multiplayer spectating
+
+## Phase 4 — Orbital Rails
+
+* patched conics
+* orbit persistence
+* map view
+* time warp
+* SOI transition
+
+## Phase 5 — Localized Multiplayer Time Warp
+
+* warp domains
+* domain merge rules
+* encounter warnings
+* timeline sync
+
+## Phase 6 — Heavy Optimization
+
+* workers
+* typed arrays
+* compact snapshots
+* physics budgets
+* WASM if needed
+
+## Phase 7 — Full Stage 1 Campaign
+
+* missions
+* science
+* codex
+* tech tree
+* research
+* facilities
+* moon missions
+
+---
+
+# 19.10 Final Engineering Warning
+
+The full design is technically possible in JavaScript/TypeScript, but the risky parts are:
+
+* KSP-like joint physics
+* browser performance with many active parts
+* multiplayer time warp
+* server cost for active physics
+* save/replay consistency
+* floating-origin bugs
+* terrain collision at planet scale
+
+The safest development strategy is:
+
+1. Build single-player physics first.
+2. Add server-authoritative multiplayer early.
+3. Keep Stage 1 part counts controlled.
+4. Use orbital rails aggressively outside physics bubbles.
+5. Measure performance before adding WASM.
+6. Make the game fun before making it huge.
+
+The project should be treated as a serious engine/game development effort, not just a normal web app.
+
+---
+
+# 20. Renderer, Shader, and Asset Pipeline Specifications
+
+This section expands the visual/rendering architecture discussed earlier: Three.js, WebGPU, TSL, floating origin, chunked terrain, and later Nanite-style virtualized geometry.
+
+---
+
+# 20.1 Renderer Architecture Spec
+
+## Rendering Goals
+
+The renderer must support:
+
+* large-scale planets
+* orbital views
+* close-up rocket rendering
+* VAB editing
+* atmospheric scattering
+* terrain LOD
+* moon terrain
+* launch effects
+* explosions
+* orbit lines
+* UI overlays
+* multiplayer vessels
+* debris fields
+
+The visual style should be readable first, cinematic second.
+
+A player must clearly understand:
+
+* where the rocket is pointing
+* where it is going
+* what is failing
+* what body it is orbiting
+* what mission objective matters
+
+---
+
+## Primary Stack
+
+Recommended:
+
+* TypeScript
+* Three.js
+* WebGPU renderer where available
+* TSL shader nodes
+* WebGL2 fallback only if practical
+* custom render graph wrapper
+* floating-origin scene management
+
+---
+
+## Renderer Subsystems
+
+```txt
+Renderer
+├── FrameGraph
+├── SceneGraphBridge
+├── CameraSystem
+├── FloatingOriginSystem
+├── PlanetRenderer
+├── TerrainRenderer
+├── AtmosphereRenderer
+├── OceanRenderer
+├── CloudRenderer
+├── VesselRenderer
+├── EffectsRenderer
+├── OrbitLineRenderer
+├── DebugRenderer
+├── UIOverlayBridge
+├── AssetStreamingSystem
+└── GPUProfiler
+```
+
+---
+
+## Render Modes
+
+### VAB Mode
+
+Priorities:
+
+* crisp part rendering
+* clean lighting
+* snapping/attachment highlights
+* ghost previews
+* center of mass/thrust/pressure overlays
+
+### Flight Mode
+
+Priorities:
+
+* stable high-FPS vessel rendering
+* atmosphere
+* terrain horizon
+* particles
+* damage/failure visibility
+
+### Map Mode
+
+Priorities:
+
+* orbit clarity
+* body scale readability
+* trajectory lines
+* maneuver nodes
+* relay overlays
+* mission markers
+
+### Tracking Station Mode
+
+Priorities:
+
+* many vessel icons
+* orbit filtering
+* codex/science overlays
+* low rendering cost
+
+---
+
+## Camera Architecture
+
+Camera types:
+
+* VAB orbit camera
+* launch chase camera
+* free camera
+* vessel-relative camera
+* map camera
+* tracking camera
+* spectator camera
+
+All cameras must support floating origin.
+
+Camera transforms should be relative to a local render frame, not raw universe coordinates.
+
+---
+
+# 20.2 WebGPU Render Graph Spec
+
+## Purpose
+
+A render graph organizes GPU passes and prevents the renderer from becoming a pile of ad hoc draw calls.
+
+---
+
+## Frame Passes
+
+Recommended frame order:
+
+1. Visibility and culling update
+2. Shadow map pass
+3. Terrain depth prepass
+4. Main opaque pass
+5. Vessel opaque pass
+6. Atmosphere pass
+7. Ocean pass
+8. Cloud pass
+9. Transparent pass
+10. Particle/effects pass
+11. Orbit line pass
+12. Debug overlay pass
+13. Post-processing pass
+14. UI composition pass
+
+---
+
+## Render Targets
+
+Core targets:
+
+* color
+* depth
+* normal
+* motion vectors later
+* atmosphere transmittance LUT
+* cloud shadow map later
+* picking/selection buffer for VAB
+
+---
+
+## WebGPU Fallback Rule
+
+If WebGPU is unavailable:
+
+* use WebGL2 fallback for basic Stage 1 visuals
+* disable advanced clouds
+* reduce terrain detail
+* use simpler atmosphere
+* disable virtualized geometry renderer
+
+The game should remain playable, even if less beautiful.
+
+---
+
+# 20.3 TSL Shader System Spec
+
+## Goal
+
+Use TSL to create reusable shader graphs for planet materials, vessels, atmospheres, oceans, effects, and debug overlays.
+
+---
+
+## Shader Module Categories
+
+### Common Nodes
+
+* world position
+* camera-relative position
+* altitude
+* slope
+* biome id
+* sun direction
+* atmosphere density
+* fresnel
+* noise
+* triplanar projection
+
+### Planet Nodes
+
+* height blend
+* biome color
+* slope rock blend
+* snow/ice mask
+* crater mask
+* scanned/unscanned overlay
+
+### Vessel Nodes
+
+* metal material
+* painted material
+* heat glow
+* damage scorch
+* ice/frost later
+* selection highlight
+
+### Atmosphere Nodes
+
+* Rayleigh scattering approximation
+* Mie scattering approximation
+* optical depth lookup
+* horizon glow
+* night fade
+
+### Ocean Nodes
+
+* wave normal
+* fresnel reflection
+* depth tint
+* shore fade
+
+### Effect Nodes
+
+* engine plume color
+* shock cone
+* reentry plasma
+* explosion glow
+* smoke soft particles
+
+---
+
+## Material Families
+
+Required material families:
+
+* terrain material
+* moon regolith material
+* launchpad material
+* vessel metal material
+* vessel painted material
+* solar panel material
+* glass material
+* atmosphere material
+* ocean material
+* cloud material
+* engine plume material
+* orbit line material
+* UI/decal material
+
+---
+
+## Shader Compilation Pipeline
+
+The asset pipeline should:
+
+1. Define TSL shader modules.
+2. Build material presets.
+3. Validate shader compatibility with WebGPU and WebGL fallback.
+4. Cache compiled pipelines where possible.
+5. Provide debug material overrides.
+
+---
+
+# 20.4 Planet Terrain Generation Spec
+
+## Planet Mesh
+
+Use a cube-sphere base.
+
+Each planet face uses quadtree LOD.
+
+Terrain chunks store:
+
+* face id
+* quadtree level
+* patch coordinates
+* height samples
+* normal data
+* biome data
+* collision data status
+
+---
+
+## LOD Rules
+
+LOD depends on:
+
+* camera altitude
+* distance from camera
+* screen-space error
+* player speed
+* whether the player is landing
+* whether a scan/codex overlay is visible
+
+---
+
+## Terrain Data Sources
+
+Stage 1 can use procedural generation.
+
+Inputs:
+
+* base radius
+* noise layers
+* crater masks
+* biome masks
+* erosion approximation
+* polar mask
+* ocean mask for home planet
+
+---
+
+## Home Planet Terrain
+
+Features:
+
+* oceans
+* continents
+* mountains
+* lowlands
+* deserts
+* polar regions
+* launch site region
+* procedural biome zones
+
+---
+
+## Moon Terrain
+
+Features:
+
+* craters
+* mare-like plains
+* highlands
+* ridges
+* polar craters
+* landing hazards
+
+---
+
+## Terrain Streaming
+
+Terrain chunks load around:
+
+* active player camera
+* active vessel
+* predicted landing zone
+* map view focus
+
+Chunks unload when far away.
+
+---
+
+## Terrain Collision
+
+Visual terrain and collision terrain are separate.
+
+Collision uses:
+
+* lower-resolution heightfields
+* high-resolution local patches near vessels
+* static meshes for launchpad/anomalies
+
+Never use visual-only virtualized geometry as the source of truth for collisions.
+
+---
+
+# 20.5 Nanite-Style Geometry Streaming Spec
+
+## Goal
+
+Support extremely detailed static terrain/objects later without overwhelming the browser.
+
+This system is optional for Stage 1 and should not block core gameplay.
+
+---
+
+## Use Cases
+
+Good candidates:
+
+* mountains
+* cliffs
+* crater rims
+* launchpad structures
+* rocks
+* anomalies
+* static colonies later
+
+Bad candidates:
+
+* active rocket parts
+* physics colliders
+* moving vessels
+* tiny debris
+* UI objects
+
+---
+
+## Virtual Geometry Principles
+
+The renderer streams clusters of triangles based on screen-space error.
+
+Each cluster stores:
+
+* bounding sphere/box
+* geometric error
+* material id
+* vertex/index data
+* parent/child hierarchy
+
+---
+
+## Cluster Pipeline
+
+Offline asset process:
+
+1. Import high-poly mesh.
+2. Split into meshlets/clusters.
+3. Build hierarchy.
+4. Generate simplified parent clusters.
+5. Compress cluster data.
+6. Store streaming pages.
+
+Runtime:
+
+1. Determine visible clusters.
+2. Request needed pages.
+3. GPU cull clusters.
+4. Render selected clusters.
+5. Evict unused pages.
+
+---
+
+## Browser Constraints
+
+Because this is browser-based:
+
+* keep cluster sizes moderate
+* stream compressed binary chunks
+* avoid huge CPU decompression spikes
+* use workers for decoding
+* keep GPU memory budget strict
+
+---
+
+## Collision Separation
+
+Nanite-style geometry is visual only.
+
+Collision uses simplified proxy geometry.
+
+---
+
+# 20.6 Atmosphere, Ocean, and Cloud Rendering Spec
+
+## Atmosphere
+
+Stage 1 atmosphere should support:
+
+* blue sky from ground
+* horizon glow from orbit
+* sunset/sunrise tint
+* fade to space
+* altitude-dependent density
+* reentry glow integration
+
+Implementation stages:
+
+### Atmosphere V1
+
+* simple shader sphere
+* fresnel/horizon glow
+* altitude fade
+
+### Atmosphere V2
+
+* precomputed transmittance LUT
+* Rayleigh/Mie approximation
+* sun angle scattering
+
+### Atmosphere V3
+
+* aerial perspective
+* planet shadow
+* eclipses
+
+---
+
+## Ocean
+
+Home planet ocean supports:
+
+* large-scale water surface
+* horizon reflection
+* shore fade
+* normal-map waves
+* simple foam near coast later
+
+Ocean collision is simple:
+
+* altitude below sea level means splash/impact
+* buoyancy can be added later
+
+---
+
+## Clouds
+
+Clouds should be optional and scalable.
+
+### Cloud V1
+
+* rotating shell texture
+* alpha blended
+* simple shadows disabled
+
+### Cloud V2
+
+* layered noise
+* weather bands
+* simple shadow projection
+
+### Cloud V3
+
+* volumetric raymarching for high-end WebGPU only
+
+Clouds must not block gameplay readability.
+
+---
+
+# 20.7 Orbit Line and Map Rendering Spec
+
+## Orbit Lines
+
+Orbit lines must be readable and precise.
+
+Render:
+
+* current orbit
+* predicted trajectory
+* escape path
+* moon encounter
+* maneuver preview
+* collision/impact marker
+* SOI transition marker
+
+---
+
+## Implementation
+
+Generate orbit polylines in an orbit worker.
+
+Render with:
+
+* camera-facing line strips
+* depth handling options
+* dashed future segments
+* color/state coding
+
+---
+
+## Map Overlays
+
+Map view overlays:
+
+* biome scan coverage
+* relay coverage
+* mission target zones
+* landing site markers
+* codex discoveries
+* anomalies
+* player vessels
+
+---
+
+# 20.8 Vessel Rendering Spec
+
+## Part Rendering
+
+Each part has:
+
+* mesh
+* material slots
+* collider proxy
+* attachment nodes
+* VAB icon
+* damage variants optional
+
+---
+
+## Instancing
+
+Use instancing for repeated parts:
+
+* small boosters
+* struts
+* tanks of same type
+* debris pieces
+* fairing fragments
+
+---
+
+## Damage Visuals
+
+Visual damage states:
+
+* normal
+* scorched
+* overheated glow
+* dented/cracked optional
+* destroyed fragment
+
+---
+
+## Engine Effects
+
+Engine plume depends on:
+
+* throttle
+* atmosphere pressure
+* fuel type
+* engine type
+* vacuum expansion
+
+Effects:
+
+* plume mesh/particles
+* smoke
+* shock diamonds later
+* launchpad dust
+* reentry plasma
+
+---
+
+# 20.9 GPU Performance Budget Spec
+
+## Frame Budget
+
+At 60 FPS, total frame budget is 16.67 ms.
+
+Target split:
+
+* CPU game/render prep: 3–5 ms
+* GPU main scene: 5–8 ms
+* terrain: 2–4 ms
+* atmosphere/ocean/clouds: 1–3 ms
+* post-processing/UI: 1–2 ms
+
+At 30 FPS, total frame budget is 33.3 ms.
+
+---
+
+## GPU Memory Budget
+
+Stage 1 target:
+
+* terrain cache: 512 MB max
+* vessel assets: 256 MB
+* textures/materials: 512 MB
+* effects: 128 MB
+* render targets: 128–256 MB
+
+Total preferred GPU memory use: under 1.5 GB.
+
+---
+
+## Scalability Settings
+
+Graphics settings:
+
+* terrain quality
+* atmosphere quality
+* cloud quality
+* ocean quality
+* shadow quality
+* particle quality
+* debris visual count
+* render scale
+* anti-aliasing
+
+---
+
+# 20.10 Asset Pipeline Spec
+
+## Asset Types
+
+* part meshes
+* part textures
+* collider proxies
+* terrain textures
+* sky/space textures
+* audio
+* particle definitions
+* shader presets
+* UI icons
+* mission illustrations
+
+---
+
+## Part Asset Package
+
+Each part should include:
+
+```txt
+part_id/
+  part.json
+  mesh.glb
+  collider.glb
+  icon.png
+  materials.json
+  thumbnail.png
+```
+
+---
+
+## Part Metadata
+
+```ts
+type PartAssetMetadata = {
+  partId: string;
+  meshUrl: string;
+  colliderUrl: string;
+  iconUrl: string;
+  materialPresetIds: string[];
+  attachmentNodeVisuals: AttachmentNodeVisual[];
+  lods?: PartLodAsset[];
+};
+```
+
+---
+
+## Build Pipeline
+
+Steps:
+
+1. Validate part definitions.
+2. Validate attachment nodes.
+3. Validate collider scale.
+4. Compress textures.
+5. Generate thumbnails.
+6. Generate LODs if needed.
+7. Package asset manifest.
+8. Upload to CDN or static asset server.
+
+---
+
+## Runtime Asset Loading
+
+Use:
+
+* manifest-based loading
+* lazy loading by tech unlocks
+* preload common parts
+* stream terrain chunks
+* cache assets in browser storage where practical
+
+---
+
+# 20.11 Procedural Texture and Biome Visualization Spec
+
+## Procedural Textures
+
+Generate or blend:
+
+* rock
+* sand
+* snow
+* grass/lowlands
+* regolith
+* crater ejecta
+* scorched launchpad marks
+
+---
+
+## Biome Overlay
+
+The map and codex should show biome progress.
+
+Overlay states:
+
+* unknown
+* scanned from orbit
+* visited
+* landed
+* sampled
+* fully studied
+
+---
+
+## Science Scan Visualization
+
+Scans reveal:
+
+* topography
+* biome borders
+* anomaly hints
+* resource hints later
+* landing risk maps
+
+---
+
+# 20.12 Renderer Implementation Roadmap
+
+## Renderer Phase 1 — Basic Playable Renderer
+
+* Three.js scene
+* VAB rendering
+* simple planet sphere
+* simple atmosphere shell
+* basic vessel rendering
+* orbit lines
+
+## Renderer Phase 2 — Terrain and Flight Visuals
+
+* cube-sphere terrain
+* terrain LOD
+* launchpad
+* ocean V1
+* clouds V1
+* engine effects
+
+## Renderer Phase 3 — WebGPU/TSL Upgrade
+
+* TSL terrain materials
+* improved atmosphere
+* better ocean
+* GPU culling
+* instancing
+
+## Renderer Phase 4 — Map and Codex Integration
+
+* biome overlays
+* scan overlays
+* relay overlays
+* mission target overlays
+* codex-linked discoveries
+
+## Renderer Phase 5 — Virtualized Geometry
+
+* meshlet/cluster pipeline
+* streamed high-detail terrain objects
+* visual-only Nanite-style renderer
+
+---
+
+# 20.13 Rendering Risk Notes
+
+Do not build the Nanite-style renderer first.
+
+The correct order is:
+
+1. Make rockets launch.
+2. Make orbit work.
+3. Make multiplayer work.
+4. Make terrain readable.
+5. Add shaders and visual polish.
+6. Add virtualized geometry only after performance budgets are understood.
+
+A beautiful renderer cannot save an unplayable flight model.
+
+The visual goal is not to beat AAA games. The goal is to make a browser-based space program simulator that is readable, performant, and inspiring.
