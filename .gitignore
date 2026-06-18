@@ -1,8 +1,8 @@
 node_modules/
-dist/
+server/node_modules/
+.DS_Store
+Thumbs.db
 *.log
 .env
-.DS_Store
-data/telemetry/
-apps/server/data/telemetry/
-.vite/
+.env.*
+.cursor/

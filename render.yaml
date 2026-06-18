@@ -1,0 +1,28 @@
+# NOVA SPACE PROGRAM — Render Blueprint
+# Deploy both services from this repo: https://dashboard.render.com/blueprints
+#
+# 1. Push this repo to GitHub
+# 2. Render Dashboard → New → Blueprint → connect repo
+# 3. Apply blueprint (creates static game site + WebSocket relay)
+# 4. Set js/config.js relayUrl to wss://<nova-relay service URL>
+# 5. Redeploy the static site (or commit the config change)
+
+services:
+  - type: web
+    name: nova-relay
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    healthCheckPath: /
+
+  - type: web
+    name: nova-space-program
+    runtime: static
+    buildCommand: echo "Static client — no build step"
+    staticPublishPath: .
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=3600

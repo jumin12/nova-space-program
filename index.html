@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOVA SPACE PROGRAM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="ui-root">
+  <!-- Loading screen -->
+  <div id="screen-loading" class="screen">
+    <div class="load-center">
+      <div class="load-logo">NOVA<span> SPACE PROGRAM</span></div>
+      <div class="load-bar"><div id="load-fill"></div></div>
+      <div id="load-tip" class="load-tip">Pressurizing fuel lines…</div>
+    </div>
+  </div>
+  <!-- Main menu -->
+  <div id="screen-menu" class="screen hidden">
+    <div class="menu-left">
+      <div class="menu-title">NOVA<span>SPACE PROGRAM</span></div>
+      <div class="menu-sub">a pocket universe on your desktop</div>
+      <div class="menu-buttons">
+        <button id="btn-campaign" class="menu-btn">CAMPAIGN</button>
+        <button id="btn-sandbox" class="menu-btn">SANDBOX</button>
+        <button id="btn-multi" class="menu-btn">MULTIPLAYER</button>
+        <button id="btn-continue" class="menu-btn hidden">CONTINUE</button>
+        <button id="btn-settings" class="menu-btn small">SETTINGS</button>
+        <button id="btn-help" class="menu-btn small">HOW TO PLAY</button>
+      </div>
+      <div class="menu-foot">v2.0 — runs 100% locally · no install · made of math</div>
+    </div>
+  </div>
+  <!-- dynamic HUD layers get injected here -->
+  <div id="hud-root"></div>
+  <div id="toast-root"></div>
+  <div id="dialog-root"></div>
+  <div id="tooltip" class="hidden"></div>
+</div>
+<script src="vendor/three.min.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/celestial.js"></script>
+<script src="js/orbits.js"></script>
+<script src="js/comms.js"></script>
+<script src="js/planetgfx.js"></script>
+<script src="js/parts.js"></script>
+<script src="js/vessel.js"></script>
+<script src="js/navball.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/config.js"></script>
+<script src="js/net.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/flight.js"></script>
+<script src="js/mapview.js"></script>
+<script src="js/career.js"></script>
+<script src="js/spacecenter.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

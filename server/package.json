@@ -1,0 +1,12 @@
+{
+  "name": "nova-relay",
+  "version": "1.0.0",
+  "description": "Tiny WebSocket room relay for NOVA SPACE PROGRAM multiplayer (no game authority).",
+  "main": "relay.js",
+  "scripts": {
+    "start": "node relay.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
