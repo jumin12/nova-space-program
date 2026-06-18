@@ -193,6 +193,19 @@ Object.assign(window.GAME, {
           });
         },
       });
+    } else if (opts.mode === 'mp') {
+      buttons.push({
+        label: 'CONTINUE', cls: 'acc', cb: () => {
+          const sm = meta.slots[picked];
+          if (sm.empty) { UI.toast('Empty slot', 'Pick NEW GAME to start fresh in this slot.', 'warn'); return; }
+          opts.onContinue && opts.onContinue(picked);
+        },
+      });
+      buttons.push({
+        label: 'NEW GAME', cb: () => {
+          opts.onNew && opts.onNew(picked);
+        },
+      });
     } else {
       buttons.push({
         label: opts.okLabel || 'SELECT', cls: 'acc', cb: () => {
@@ -206,6 +219,28 @@ Object.assign(window.GAME, {
     UI.dialog({ title: opts.title || 'SAVE SLOTS', body, buttons });
   };
   GAME.pickSaveSlot = (onSelect, opts) => GAME.showSlotPicker(Object.assign({ onSelect }, opts));
+  GAME.showMultiplayerSlotSetup = () => {
+    GAME.showSlotPicker({
+      title: 'MULTIPLAYER — SELECT SLOT',
+      mode: 'mp',
+      hint: 'Continue an existing save or start a new one in any slot. You will create your agency and launch site when you join a session.',
+      onContinue: (slot) => {
+        GAME.loadSlot(slot, { mpFromSave: true });
+        NET.openLobby();
+      },
+      onNew: (slot) => {
+        const existing = GAME.loadSave(slot);
+        const startFresh = () => {
+          GAME.newGameInSlot(slot, 'sandbox');
+          GAME.save.mpFromSave = false;
+          NET.openLobby();
+        };
+        if (existing) {
+          UI.confirm('NEW MULTIPLAYER SAVE', `Replace the save in slot ${slot + 1} with a fresh game?`, startFresh);
+        } else startFresh();
+      },
+    });
+  };
   function saveSettings() { if (canStore) try { localStorage.setItem(LS_SET, JSON.stringify(GAME.settings)); } catch (e) { } }
   function loadSettings() {
     if (!canStore) return;
@@ -1035,20 +1070,7 @@ Object.assign(window.GAME, {
     };
     document.getElementById('btn-multi').onclick = () => {
       AUDIO.resume(); AUDIO.click();
-      if (!GAME.save) {
-        const meta = GAME.getSlotsMeta();
-        const sm = meta.slots[meta.activeSlot];
-        if (sm && !sm.empty) GAME.loadSlot(meta.activeSlot, { mpFromSave: false });
-        else {
-          GAME.showSlotPicker({
-            title: 'MULTIPLAYER — SELECT SLOT', mode: 'load',
-            hint: 'Pick a save slot for this session. Progress and launch autosaves are stored here.',
-            onSelect: (slot) => { GAME.loadSlot(slot, { mpFromSave: false }); NET.openLobby(); },
-          });
-          return;
-        }
-      }
-      NET.openLobby();
+      GAME.showMultiplayerSlotSetup();
     };
     document.getElementById('btn-settings').onclick = () => { AUDIO.resume(); AUDIO.click(); GAME.showSettings(); };
     document.getElementById('btn-help').onclick = () => { AUDIO.resume(); AUDIO.click(); UI.showHelp(); };
