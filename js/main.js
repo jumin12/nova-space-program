@@ -225,7 +225,8 @@ Object.assign(window.GAME, {
         } else {
           GAME.loadSlot(slot, { mpFromSave: true });
         }
-        NET.openLobby();
+        if (window.NET && NET.openLobby) NET.openLobby();
+        else UI.toast('Multiplayer unavailable', 'Networking module did not load.', 'warn');
       },
     });
   };
@@ -580,7 +581,7 @@ Object.assign(window.GAME, {
         this.plume.visible = false;
       }
       const cont = document.getElementById('btn-continue');
-      cont.classList.toggle('hidden', !GAME.hasAnySave());
+      if (cont) cont.classList.toggle('hidden', !GAME.hasAnySave());
       AUDIO.music(true);
     },
 
@@ -1000,17 +1001,23 @@ Object.assign(window.GAME, {
     };
     requestAnimationFrame(warm);
 
-    /* menu buttons */
+    /* menu buttons — bind safely so a missing/cached DOM node cannot break boot */
+    const bindMenuBtn = (id, fn) => {
+      const el = document.getElementById(id);
+      if (el) el.onclick = fn;
+      else console.warn('[NSP] Missing menu button:', id);
+    };
+
     const startCampaign = (slot) => GAME.showCampaignSetup(cfg => { GAME.newGameInSlot(slot, 'campaign', cfg); GAME.go('agencysetup'); });
-    document.getElementById('btn-campaign').onclick = () => {
+    bindMenuBtn('btn-campaign', () => {
       AUDIO.resume(); AUDIO.click();
       GAME.pickSaveSlot(slot => startCampaign(slot), {
         title: 'CAMPAIGN — SELECT SLOT',
         hint: 'Pick a slot for your new campaign. Existing saves in that slot will be replaced.',
         okLabel: 'START CAMPAIGN',
       });
-    };
-    document.getElementById('btn-sandbox').onclick = () => {
+    });
+    bindMenuBtn('btn-sandbox', () => {
       AUDIO.resume(); AUDIO.click();
       GAME.pickSaveSlot(slot => {
         const existing = GAME.loadSave(slot);
@@ -1032,8 +1039,8 @@ Object.assign(window.GAME, {
         confirmOverwrite: false,
         okLabel: 'SELECT',
       });
-    };
-    document.getElementById('btn-continue').onclick = () => {
+    });
+    bindMenuBtn('btn-continue', () => {
       AUDIO.resume(); AUDIO.click();
       const meta = GAME.getSlotsMeta();
       const sm = meta.slots[meta.activeSlot];
@@ -1047,13 +1054,14 @@ Object.assign(window.GAME, {
         hint: 'Your last active slot is empty — pick a slot to load.',
         onSelect: (slot) => { GAME.loadSlot(slot, { mpFromSave: true }); GAME.go('sc'); },
       });
-    };
-    document.getElementById('btn-multi').onclick = () => {
+    });
+    bindMenuBtn('btn-multi', () => {
       AUDIO.resume(); AUDIO.click();
-      GAME.showMultiplayerSlotSetup();
-    };
-    document.getElementById('btn-settings').onclick = () => { AUDIO.resume(); AUDIO.click(); GAME.showSettings(); };
-    document.getElementById('btn-help').onclick = () => { AUDIO.resume(); AUDIO.click(); UI.showHelp(); };
+      if (GAME.showMultiplayerSlotSetup) GAME.showMultiplayerSlotSetup();
+      else UI.toast('Multiplayer unavailable', 'Networking module did not load.', 'warn');
+    });
+    bindMenuBtn('btn-settings', () => { AUDIO.resume(); AUDIO.click(); GAME.showSettings(); });
+    bindMenuBtn('btn-help', () => { AUDIO.resume(); AUDIO.click(); UI.showHelp(); });
     addEventListener('click', () => AUDIO.resume(), { once: true });
     addEventListener('keydown', e => {
       if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
