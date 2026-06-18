@@ -462,6 +462,10 @@ const CAREER = (() => {
     if (!s.launchCount) s.launchCount = {};
     if (!s.cfg) s.cfg = GAME.defaultCfg ? GAME.defaultCfg('normal') : {};
     if (!s.site) s.site = { lat: -0.0018, lon: 0 };
+    if (!s.agencyReady) {
+      s.agency = s.agency || GAME.defaultAgency();
+      s.agencyReady = true;
+    }
     CEL.setSite(s.site.lat, s.site.lon);
     refreshOffers();
     if (!s.stockAdded) installStockCrafts();

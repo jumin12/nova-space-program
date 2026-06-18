@@ -47,7 +47,7 @@ const NET = (() => {
   function join(url, room, name, mode, pass, onResult) {
     open(url, () => {
       N.pendingJoin = { room, name, mode, onResult };
-      send({ t: 'join', room, id: N.id, name, mode, pass: pass || '', site: GAME.save && GAME.save.site });
+      send({ t: 'join', room, id: N.id, name, mode, pass: pass || '', site: GAME.save && GAME.save.site, agency: GAME.save && GAME.save.agency });
     }, err => onResult && onResult(err));
   }
   function disconnect() {
@@ -86,9 +86,9 @@ const NET = (() => {
           if (p.id === N.id) continue;
           seen.add(p.id);
           if (!N.players.has(p.id)) {
-            N.players.set(p.id, { name: p.name, site: p.site, color: N.colors[N.players.size % N.colors.length] });
+            N.players.set(p.id, { name: p.name, site: p.site, agency: p.agency, color: N.colors[N.players.size % N.colors.length] });
             UI.toast('Player joined', p.name, '');
-            if (p.site) CEL.addRemoteSite(p.site.lat, p.site.lon, p.name);
+            if (p.site) CEL.addRemoteSite(p.site.lat, p.site.lon, p.name, p.agency);
             /* introduce ourselves: share our craft right away */
             N.lastCraftSig = '';
           }
@@ -140,7 +140,11 @@ const NET = (() => {
       }
       case 'site': {
         const p = N.players.get(m.id);
-        if (p) { p.site = m.site; CEL.addRemoteSite(m.site.lat, m.site.lon, p.name); }
+        if (p) {
+          p.site = m.site;
+          if (m.agency) p.agency = m.agency;
+          CEL.addRemoteSite(m.site.lat, m.site.lon, p.name, m.agency || p.agency);
+        }
         break;
       }
     }
@@ -155,7 +159,12 @@ const NET = (() => {
   function onFunds(amount) { if (N.mode === 'coop') send({ t: 'coop', kind: 'funds', amt: amount }); }
   function onTech(techId) { if (N.mode === 'coop') send({ t: 'coop', kind: 'tech', tech: techId }); }
   function onContract(c) { send({ t: 'milestone', name: c.name }); }
-  function broadcastSite(site) { send({ t: 'site', site }); }
+  function broadcastSite(site) {
+    send({
+      t: 'site', site,
+      agency: GAME.save && GAME.save.agency ? GAME.save.agency.name : '',
+    });
+  }
 
   /* ---------- remote launch complex visuals (map + flight) ---------- */
   const _svA = new THREE.Vector3(), _svB = new THREE.Vector3(), _svC = new THREE.Vector3();
@@ -213,7 +222,7 @@ const NET = (() => {
     while (mv.remoteSiteMarks.length < remotes.length) {
       const st = remotes[mv.remoteSiteMarks.length];
       const color = playerColor(st.name);
-      const m = makeSiteMark(color, st.name + ' · LC');
+      const m = makeSiteMark(color, (st.agency || st.name) + ' · LC');
       mv.scene.add(m.mark, m.ring, m.label);
       const entry = { ...m, name: st.name, grp: null };
       if (GAME.buildKSC && mv.meshes && mv.meshes.gaia) {
@@ -456,7 +465,7 @@ const NET = (() => {
     if (!GAME.save || (mode === 'sandbox') !== (GAME.save.mode === 'sandbox')) {
       GAME.newGame(mode === 'sandbox' ? 'sandbox' : 'campaign', GAME.save && GAME.save.cfg);
     }
-    if (!GAME.save.siteChosen) GAME.go('sitepick', { mp: true });
+    if (!GAME.save.siteChosen) GAME.goAgencyOrSite(true);
     else GAME.go('sc');
   }
   function updateLobbyUi() {

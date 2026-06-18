@@ -345,6 +345,7 @@
       const bf = CEL.siteGroundBf(CEL.KSC.lat, CEL.KSC.lon);
       this.ksc.position.copy(bf);
       this.ksc.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bf.clone().normalize());
+      GAME.applyAgencyFlag(this.ksc);
       this.views.gaia.group.add(this.ksc);
     },
 
@@ -1928,7 +1929,9 @@
       const flag = new THREE.Group();
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.4, 6), PARTS.M.gray);
       pole.position.y = 0.7;
-      const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.34), new THREE.MeshStandardMaterial({ color: 0x2a8c4a, side: THREE.DoubleSide }));
+      const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.34), new THREE.MeshStandardMaterial({
+        color: 0xffffff, side: THREE.DoubleSide, map: GAME.agencyFlagTex(GAME.save && GAME.save.agency && GAME.save.agency.flag),
+      }));
       cloth.position.set(0.3, 1.2, 0);
       flag.add(pole, cloth);
       const bf = this.landedBf.pos.clone();

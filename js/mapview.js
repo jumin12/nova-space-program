@@ -323,7 +323,9 @@ const MAPVIEW = (() => {
         transparent: true, depthTest: false, blending: THREE.AdditiveBlending,
       }));
       this.facilityRing.renderOrder = 23;
-      this.facilityLabel = U.textSprite('NOVA SPACE CENTER', { size: 38, color: '#b8ecff', bg: 'rgba(6,14,22,0.72)' });
+      this.facilityLabel = U.textSprite(
+        ((GAME.save.agency && GAME.save.agency.name) || 'NOVA SPACE CENTER') + ' · LC',
+        { size: 38, color: '#b8ecff', bg: 'rgba(6,14,22,0.72)' });
       this.facilityLabel.renderOrder = 24;
       this.focusRing = new THREE.Mesh(
         new THREE.RingGeometry(0.92, 1.02, 72),

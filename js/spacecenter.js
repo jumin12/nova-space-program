@@ -315,9 +315,11 @@
     /* flag */
     const fp = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 14, 8), mGray);
     fp.position.set(40, 7, 96);
-    const flag = new THREE.Mesh(new THREE.PlaneGeometry(7, 4), new THREE.MeshStandardMaterial({ color: 0x2a8c4a, side: THREE.DoubleSide }));
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(7, 4), new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
     flag.position.set(43.6, 12, 96);
+    flag.userData.agencyFlag = true;
     g.add(fp, flag);
+    if (typeof GAME !== 'undefined' && GAME.applyAgencyFlag) GAME.applyAgencyFlag(g);
 
     g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     return g;
@@ -375,7 +377,8 @@
       UI.topbar(true);
       const hud = document.getElementById('hud-root');
       const ll = `${(CEL.KSC.lat / U.DEG).toFixed(1)}°, ${(CEL.KSC.lon / U.DEG).toFixed(1)}°`;
-      el('div', 'sc-name', hud, (GAME.save.siteChosen ? 'LAUNCH COMPLEX ' + ll : 'NOVA SPACE CENTER') + ' — GAIA');
+      const ag = (GAME.save.agency && GAME.save.agency.name) || 'AGENCY';
+      el('div', 'sc-name', hud, (GAME.save.siteChosen ? ag + ' · LC ' + ll : ag) + ' — GAIA');
       const warpHud = el('div', '', hud);
       warpHud.id = 'sc-warp';
       warpHud.style.cssText = 'position:absolute;top:54px;right:14px;display:flex;gap:4px;align-items:center;pointer-events:all;z-index:5';

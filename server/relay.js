@@ -21,7 +21,7 @@ const rooms = new Map();
 function roster(roomName) {
   const r = rooms.get(roomName);
   if (!r) return [];
-  return [...r.players.values()].map(p => ({ id: p.id, name: p.name, site: p.site }));
+  return [...r.players.values()].map(p => ({ id: p.id, name: p.name, site: p.site, agency: p.agency }));
 }
 function roomList() {
   return [...rooms.entries()].map(([name, r]) => ({
@@ -58,7 +58,7 @@ wss.on('connection', ws => {
       if (r.pass && r.pass !== (m.pass || '')) { ws.send(JSON.stringify({ t: 'badpass' })); return; }
       if (r.players.size >= MAX_PLAYERS) { ws.send(JSON.stringify({ t: 'full' })); return; }
       room = name;
-      r.players.set(ws, { id: m.id, name: String(m.name).slice(0, 24), site: m.site });
+      r.players.set(ws, { id: m.id, name: String(m.name).slice(0, 24), site: m.site, agency: m.agency || null });
       ws.send(JSON.stringify({ t: 'joined', room: name, mode: r.mode }));
       broadcast(room, { t: 'roster', players: roster(room) });
       console.log(`[${room}] ${m.name} joined (${r.players.size}/${MAX_PLAYERS})`);
@@ -69,7 +69,7 @@ wss.on('connection', ws => {
     const r = rooms.get(room);
     const me = r && r.players.get(ws);
     if (!me) return;
-    if (m.t === 'site') me.site = m.site;
+    if (m.t === 'site') { me.site = m.site; if (m.agency) me.agency = m.agency; }
     if (m.t === 'leave') { ws.close(); return; }
     /* relay everything else, stamped with the sender id */
     m.id = me.id;

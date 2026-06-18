@@ -38,6 +38,68 @@ Object.assign(window.GAME, {
     veteran: { radiation: true, lifeSupport: true, failures: true, commNet: true, sciMult: 0.7, startFunds: 22000, hardcore: true, preset },
   })[preset] || GAME.defaultCfg('normal');
 
+  GAME.defaultAgency = () => ({
+    name: 'Nova Aerospace',
+    flag: { bg: '#1a3d5c', stripe: '#e8c84a', emblem: '#ffffff', pattern: 'stripes' },
+  });
+
+  GAME.drawAgencyFlag = (ctx, w, h, flag) => {
+    const f = flag || GAME.defaultAgency().flag;
+    ctx.fillStyle = f.bg;
+    ctx.fillRect(0, 0, w, h);
+    if (f.pattern === 'stripes') {
+      ctx.fillStyle = f.stripe;
+      for (let i = 0; i < 5; i++) ctx.fillRect(0, (h / 5) * i, w, h / 10);
+    } else if (f.pattern === 'diagonal') {
+      ctx.fillStyle = f.stripe;
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.55); ctx.lineTo(w, 0); ctx.lineTo(w, h * 0.25); ctx.lineTo(0, h * 0.8);
+      ctx.closePath(); ctx.fill();
+    } else if (f.pattern === 'canton') {
+      ctx.fillStyle = f.stripe;
+      ctx.fillRect(0, 0, w * 0.42, h * 0.52);
+    }
+    ctx.fillStyle = f.emblem;
+    const cx = f.pattern === 'canton' ? w * 0.21 : w * 0.5;
+    const cy = f.pattern === 'canton' ? h * 0.26 : h * 0.5;
+    const r = Math.min(w, h) * 0.11;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r * 2.2);
+    ctx.lineTo(cx + r * 0.85, cy + r * 0.3);
+    ctx.lineTo(cx - r * 0.85, cy + r * 0.3);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  GAME.agencyFlagTex = (flag) => {
+    const key = JSON.stringify(flag || {});
+    if (!GAME._flagTex) GAME._flagTex = new Map();
+    if (GAME._flagTex.has(key)) return GAME._flagTex.get(key);
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 80;
+    GAME.drawAgencyFlag(c.getContext('2d'), 128, 80, flag);
+    const tex = new THREE.CanvasTexture(c);
+    tex.encoding = THREE.sRGBEncoding;
+    GAME._flagTex.set(key, tex);
+    return tex;
+  };
+
+  GAME.applyAgencyFlag = (root) => {
+    const flag = GAME.save && GAME.save.agency && GAME.save.agency.flag;
+    if (!flag || !root) return;
+    const tex = GAME.agencyFlagTex(flag);
+    root.traverse(o => {
+      if (o.userData && o.userData.agencyFlag && o.material) {
+        o.material.map = tex;
+        o.material.color.setHex(0xffffff);
+        o.material.needsUpdate = true;
+      }
+    });
+  };
+
   GAME.newGame = (mode, cfg) => {
     cfg = cfg || GAME.defaultCfg('normal');
     if (mode === 'sandbox') cfg = Object.assign({}, cfg, { commNet: false, radiation: cfg.radiation, failures: false });
@@ -46,7 +108,7 @@ Object.assign(window.GAME, {
       tech: mode === 'sandbox' ? Object.keys(CAREER.TECH) : ['start'],
       sciLog: {}, contracts: {}, crafts: {}, flights: [], debris: [], launchCount: {},
       ut: 0, stockAdded: false, cfg,
-      site: { lat: -0.0018, lon: 0 }, siteChosen: false,
+      site: { lat: -0.0018, lon: 0 }, siteChosen: false, agencyReady: false,
     };
     GAME.ut = 5 * 3600;                      // pleasant morning at the space center
     CEL.setSite(GAME.save.site.lat, GAME.save.site.lon);
@@ -372,6 +434,91 @@ Object.assign(window.GAME, {
   };
   GAME.screens.menu = menu;
 
+  /* ================= AGENCY SETUP screen ================= */
+  const agencysetup = {
+    enter(args) {
+      this.mp = args && args.mp;
+      const def = (GAME.save && GAME.save.agency) || GAME.defaultAgency();
+      this.flag = Object.assign({}, def.flag);
+      this.name = def.name || 'Nova Aerospace';
+      const hud = document.getElementById('hud-root');
+      this.ui = el('div', '', hud);
+      this.ui.id = 'agency-ui';
+      this.ui.innerHTML = `
+        <div class="ag-title">FOUND YOUR AGENCY</div>
+        <div class="ag-sub">Name your space program and design its flag before choosing a launch site.</div>
+        <div class="ag-panel">
+          <div class="ag-col">
+            <div class="set-row"><label>Agency name</label>
+              <input id="ag-name" type="text" maxlength="32" value="${this.name}" style="width:240px"></div>
+            <div class="set-row"><label>Flag pattern</label>
+              <select id="ag-pattern">
+                <option value="stripes">Horizontal stripes</option>
+                <option value="solid">Solid field</option>
+                <option value="diagonal">Diagonal band</option>
+                <option value="canton">Canton + emblem</option>
+              </select></div>
+            <div class="set-row"><label>Field color</label><input id="ag-bg" type="color" value="${this.flag.bg}"></div>
+            <div class="set-row"><label>Accent color</label><input id="ag-stripe" type="color" value="${this.flag.stripe}"></div>
+            <div class="set-row"><label>Emblem color</label><input id="ag-emblem" type="color" value="${this.flag.emblem}"></div>
+          </div>
+          <div class="ag-col ag-preview-wrap">
+            <div class="ag-preview-label">FLAG PREVIEW</div>
+            <canvas id="ag-canvas" width="256" height="160"></canvas>
+          </div>
+        </div>
+        <div class="ag-actions">
+          <button class="btn acc" id="ag-go">CONTINUE TO SITE SELECTION</button>
+        </div>`;
+      this.canvas = this.ui.querySelector('#ag-canvas');
+      this.ctx = this.canvas.getContext('2d');
+      const redraw = () => {
+        this.name = this.ui.querySelector('#ag-name').value.trim() || 'Nova Aerospace';
+        this.flag = {
+          bg: this.ui.querySelector('#ag-bg').value,
+          stripe: this.ui.querySelector('#ag-stripe').value,
+          emblem: this.ui.querySelector('#ag-emblem').value,
+          pattern: this.ui.querySelector('#ag-pattern').value,
+        };
+        GAME.drawAgencyFlag(this.ctx, this.canvas.width, this.canvas.height, this.flag);
+      };
+      this.ui.querySelector('#ag-name').oninput = redraw;
+      for (const id of ['ag-bg', 'ag-stripe', 'ag-emblem', 'ag-pattern']) {
+        this.ui.querySelector('#' + id).oninput = redraw;
+        this.ui.querySelector('#' + id).onchange = redraw;
+      }
+      this.ui.querySelector('#ag-pattern').value = this.flag.pattern || 'stripes';
+      redraw();
+      this.ui.querySelector('#ag-go').onclick = () => {
+        AUDIO.click();
+        const name = this.ui.querySelector('#ag-name').value.trim();
+        if (!name) { UI.toast('Name required', 'Give your agency a name.', 'warn'); return; }
+        GAME.save.agency = {
+          name,
+          flag: {
+            bg: this.ui.querySelector('#ag-bg').value,
+            stripe: this.ui.querySelector('#ag-stripe').value,
+            emblem: this.ui.querySelector('#ag-emblem').value,
+            pattern: this.ui.querySelector('#ag-pattern').value,
+          },
+        };
+        GAME.save.agencyReady = true;
+        GAME._flagTex = null;
+        GAME.saveNow();
+        UI.toast('Agency founded', name, 'sci');
+        GAME.go('sitepick', { mp: this.mp });
+      };
+    },
+    update() { },
+    exit() { },
+  };
+  GAME.screens.agencysetup = agencysetup;
+  GAME.goAgencyOrSite = (mp) => {
+    if (!GAME.save.agencyReady) GAME.go('agencysetup', { mp });
+    else if (!GAME.save.siteChosen) GAME.go('sitepick', { mp });
+    else GAME.go('sc');
+  };
+
   /* ================= LAUNCH SITE PICKER screen ================= */
   const sitepick = {
     ensureScene() {
@@ -395,7 +542,27 @@ Object.assign(window.GAME, {
       this.marker.add(pin, ringM);
       this.marker.visible = false;
       this.scene.add(this.marker);
+      this.remoteMarkers = new THREE.Group();
+      this.scene.add(this.remoteMarkers);
       this.ray = new THREE.Raycaster();
+    },
+    syncRemoteMarkers() {
+      if (!this.remoteMarkers) return;
+      while (this.remoteMarkers.children.length) this.remoteMarkers.remove(this.remoteMarkers.children[0]);
+      if (!this.mp) return;
+      for (const st of CEL.remoteSites()) {
+        const p = CEL.latLonToBf(st.lat, st.lon).multiplyScalar(CEL.GAIA.R);
+        const g = new THREE.Group();
+        const pin = new THREE.Mesh(
+          new THREE.ConeGeometry(CEL.GAIA.R * 0.01, CEL.GAIA.R * 0.04, 8),
+          new THREE.MeshBasicMaterial({ color: 0xffb454 }));
+        pin.rotation.x = Math.PI;
+        pin.position.y = CEL.GAIA.R * 0.024;
+        g.add(pin);
+        g.position.copy(p);
+        g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p.clone().normalize());
+        this.remoteMarkers.add(g);
+      }
     },
 
     enter(args) {
@@ -403,12 +570,14 @@ Object.assign(window.GAME, {
       this.mp = args && args.mp;
       this.yaw = 0.6; this.pitch = 0.2; this.dist = CEL.GAIA.R * 3.1;
       this.picked = null;
+      this.syncRemoteMarkers();
+      const sepKm = Math.round(CEL.minSiteSepKm());
       const hud = document.getElementById('hud-root');
       this.ui = el('div', '', hud);
       this.ui.id = 'sitepick-ui';
       this.ui.innerHTML = `
         <div class="sp-title">CHOOSE YOUR LAUNCH SITE</div>
-        <div class="sp-sub">Click anywhere on land to found your complex.${this.mp ? ' Other players will see your site.' : ''} Equatorial sites make orbital launches cheapest; polar sites see the auroras.</div>
+        <div class="sp-sub">Click anywhere on land to found your complex.${this.mp ? ' Other players will see your site.' : ''} Complexes must be at least ${sepKm} km apart.${this.mp ? ' Orange pins mark other players.' : ''}</div>
         <div class="sp-info mono" id="sp-info">—</div>
         <div class="sp-actions">
           <button class="btn acc" id="sp-go" disabled>FOUND COMPLEX HERE</button>
@@ -443,13 +612,16 @@ Object.assign(window.GAME, {
       const h = CEL.heightAt(CEL.GAIA, p);
       const biome = CEL.GAIA.biomes[CEL.biomeAt(CEL.GAIA, p)];
       const onLand = h > 5;
+      const conflict = onLand ? CEL.sitePlacementConflict(ll.lat, ll.lon) : null;
       this.marker.position.copy(p).multiplyScalar(CEL.GAIA.R);
       this.marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p);
       this.marker.visible = true;
-      this.picked = onLand ? { lat: ll.lat, lon: ll.lon } : null;
-      go.disabled = !onLand;
-      info.textContent = `LAT ${(ll.lat / U.DEG).toFixed(2)}° · LON ${(ll.lon / U.DEG).toFixed(2)}° · ${biome.toUpperCase()} · ${onLand ? 'VIABLE SITE' : 'NEED DRY LAND'}`;
-      AUDIO.blip(onLand ? 980 : 320, 0.06, 0.08);
+      this.picked = onLand && !conflict ? { lat: ll.lat, lon: ll.lon } : null;
+      go.disabled = !this.picked;
+      if (!onLand) info.textContent = `LAT ${(ll.lat / U.DEG).toFixed(2)}° · LON ${(ll.lon / U.DEG).toFixed(2)}° · ${biome.toUpperCase()} · NEED DRY LAND`;
+      else if (conflict) info.textContent = `TOO CLOSE TO ${conflict.toUpperCase()} — NEED ${Math.round(CEL.minSiteSepKm())} KM CLEARANCE`;
+      else info.textContent = `LAT ${(ll.lat / U.DEG).toFixed(2)}° · LON ${(ll.lon / U.DEG).toFixed(2)}° · ${biome.toUpperCase()} · VIABLE SITE`;
+      AUDIO.blip(this.picked ? 980 : 320, 0.06, 0.08);
     },
     confirm(lat, lon) {
       GAME.save.site = { lat, lon };
@@ -469,6 +641,7 @@ Object.assign(window.GAME, {
       this.cam.aspect = innerWidth / innerHeight;
       this.cam.updateProjectionMatrix();
       this.stars.update(this.cam.position, 0);
+      if (this.mp) this.syncRemoteMarkers();
       GAME.renderer.render(this.scene, this.cam);
     },
     exit() {
@@ -618,7 +791,7 @@ Object.assign(window.GAME, {
     requestAnimationFrame(warm);
 
     /* menu buttons */
-    const startCampaign = () => GAME.showCampaignSetup(cfg => { GAME.newGame('campaign', cfg); GAME.go('sitepick'); });
+    const startCampaign = () => GAME.showCampaignSetup(cfg => { GAME.newGame('campaign', cfg); GAME.go('agencysetup'); });
     document.getElementById('btn-campaign').onclick = () => {
       AUDIO.resume(); AUDIO.click();
       const existing = GAME.loadSave();
@@ -631,8 +804,8 @@ Object.assign(window.GAME, {
       const existing = GAME.loadSave();
       if (existing && existing.mode === 'sandbox') { GAME.save = existing; GAME.ut = existing.ut || 0; CAREER.migrate(); GAME.go('sc'); }
       else if (existing) {
-        UI.confirm('NEW SANDBOX', 'Start a sandbox? Your existing save will be replaced.', () => { GAME.newGame('sandbox'); GAME.go('sitepick'); });
-      } else { GAME.newGame('sandbox'); GAME.go('sitepick'); }
+        UI.confirm('NEW SANDBOX', 'Start a sandbox? Your existing save will be replaced.', () => { GAME.newGame('sandbox'); GAME.go('agencysetup'); });
+      } else { GAME.newGame('sandbox'); GAME.go('agencysetup'); }
     };
     document.getElementById('btn-continue').onclick = () => {
       AUDIO.resume(); AUDIO.click();

@@ -141,9 +141,9 @@ const CEL = (() => {
     /* terrain changed under the bake — old textures would show stale square patches */
     if (typeof PG !== 'undefined' && PG.invalidateBake) PG.invalidateBake('gaia');
   }
-  function addRemoteSite(lat, lon, name) {
+  function addRemoteSite(lat, lon, name, agency) {
     const i = sites.findIndex(s => !s.home && s.name === name);
-    const s = Object.assign(siteVectors(lat, lon), { home: false, bay: false, name });
+    const s = Object.assign(siteVectors(lat, lon), { home: false, bay: false, name, agency: agency || '' });
     if (i >= 0) sites[i] = s;
     else sites.push(s);
     if (typeof PG !== 'undefined' && PG.invalidateBake) PG.invalidateBake('gaia');
@@ -157,6 +157,24 @@ const CEL = (() => {
   }
   function clearRemoteSites() { sites.length = sites[0] ? 1 : 0; }
   function remoteSites() { return sites.filter(s => !s.home); }
+  const MIN_SITE_SEP = 0.038;
+  const _sepA = { x: 0, y: 0, z: 0 }, _sepB = { x: 0, y: 0, z: 0 };
+  function siteAngularDist(lat1, lon1, lat2, lon2) {
+    const a = latLonToBf(lat1, lon1, _sepA);
+    const b = latLonToBf(lat2, lon2, _sepB);
+    return Math.acos(clamp(a.x * b.x + a.y * b.y + a.z * b.z, -1, 1));
+  }
+  function minSiteSepKm() { return MIN_SITE_SEP * GAIA.R / 1000; }
+  function sitePlacementConflict(lat, lon) {
+    for (const st of sites) {
+      if (st.home) continue;
+      if (siteAngularDist(lat, lon, st.lat, st.lon) < MIN_SITE_SEP) {
+        const label = st.agency || (st.name ? `${st.name}'s complex` : 'another launch complex');
+        return label;
+      }
+    }
+    return null;
+  }
 
   /* ============ radiation environment (rad/h) ============ */
   const RAD_CFG = {
@@ -600,5 +618,5 @@ const CEL = (() => {
   }
 
   const NSC = KSC;
-  return { B, list, GAIA, SUN, KSC, NSC, BELT, RAD_CFG, sites, setSite, syncSiteAlt, addRemoteSite, removeRemoteSite, clearRemoteSites, remoteSites, adjustSiteHeight, radiationAt, stormAt, TIME_DAY, TIME_YEAR, heightAt, biomeAt, atmoDensity, atmoPressure, spinAngle, bfToInertial, inertialToBf, latLonToBf, bfToLatLon, siteGroundBf, sitePadBf, spinOmega, situation };
+  return { B, list, GAIA, SUN, KSC, NSC, BELT, RAD_CFG, sites, setSite, syncSiteAlt, addRemoteSite, removeRemoteSite, clearRemoteSites, remoteSites, siteAngularDist, sitePlacementConflict, minSiteSepKm, MIN_SITE_SEP, adjustSiteHeight, radiationAt, stormAt, TIME_DAY, TIME_YEAR, heightAt, biomeAt, atmoDensity, atmoPressure, spinAngle, bfToInertial, inertialToBf, latLonToBf, bfToLatLon, siteGroundBf, sitePadBf, spinOmega, situation };
 })();
