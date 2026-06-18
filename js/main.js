@@ -8,23 +8,204 @@ Object.assign(window.GAME, {
 
 (() => {
   const { el } = U;
-  const LS_SAVE = 'nsp_save_v1', LS_SET = 'nsp_settings_v1';
+  const LS_SAVE_LEGACY = 'nsp_save_v1', LS_SET = 'nsp_settings_v1';
+  const LS_SLOTS_META = 'nsp_slots_meta_v2', LS_SLOT_PREFIX = 'nsp_slot_';
+  const NUM_SLOTS = 5;
 
   /* ---------- persistence ---------- */
   function storageOk() {
     try { localStorage.setItem('_t', '1'); localStorage.removeItem('_t'); return true; } catch (e) { return false; }
   }
   const canStore = storageOk();
-  GAME.saveNow = () => {
+  GAME.activeSlot = 0;
+
+  function slotKey(i) { return LS_SLOT_PREFIX + i; }
+  function emptySlotMeta(i) { return { slot: i, empty: true }; }
+  function loadMeta() {
+    if (!canStore) return { activeSlot: 0, slots: Array.from({ length: NUM_SLOTS }, (_, i) => emptySlotMeta(i)) };
+    try {
+      const m = JSON.parse(localStorage.getItem(LS_SLOTS_META));
+      if (m && Array.isArray(m.slots) && m.slots.length === NUM_SLOTS) return m;
+    } catch (e) { /* fresh */ }
+    return { activeSlot: 0, slots: Array.from({ length: NUM_SLOTS }, (_, i) => emptySlotMeta(i)) };
+  }
+  function saveMeta(meta) {
+    if (!canStore) return;
+    try { localStorage.setItem(LS_SLOTS_META, JSON.stringify(meta)); } catch (e) { }
+  }
+  function summarizeSave(s) {
+    return {
+      empty: false,
+      mode: s.mode || 'campaign',
+      ut: s.ut || 0,
+      agencyName: (s.agency && s.agency.name) || '',
+      siteChosen: !!s.siteChosen,
+      funds: Math.round(s.funds || 0),
+      sci: Math.round((s.sci || 0) * 10) / 10,
+      flights: (s.flights || []).length,
+      crafts: Object.keys(s.crafts || {}).length,
+      mpSessionKey: s.mpSessionKey || null,
+    };
+  }
+  function updateSlotMeta(slot, opts) {
+    if (!GAME.save) return;
+    const meta = loadMeta();
+    meta.activeSlot = GAME.activeSlot = slot;
+    meta.slots[slot] = Object.assign({ slot, updated: Date.now(), label: (opts && opts.label) || 'Saved' }, summarizeSave(GAME.save));
+    saveMeta(meta);
+  }
+  function migrateLegacySave() {
+    if (!canStore) return;
+    const legacy = localStorage.getItem(LS_SAVE_LEGACY);
+    if (!legacy) return;
+    const meta = loadMeta();
+    if (!meta.slots[0].empty) return;
+    try {
+      localStorage.setItem(slotKey(0), legacy);
+      const s = JSON.parse(legacy);
+      meta.slots[0] = Object.assign({ slot: 0, updated: Date.now(), label: 'Migrated save' }, summarizeSave(s));
+      meta.activeSlot = 0;
+      saveMeta(meta);
+      localStorage.removeItem(LS_SAVE_LEGACY);
+    } catch (e) { }
+  }
+  migrateLegacySave();
+  GAME.activeSlot = loadMeta().activeSlot;
+
+  GAME.getSlotsMeta = () => loadMeta();
+  GAME.hasAnySave = () => loadMeta().slots.some(s => !s.empty);
+  GAME.loadSave = (slot) => {
+    if (!canStore) return null;
+    const i = slot != null ? slot : GAME.activeSlot;
+    try {
+      const s = localStorage.getItem(slotKey(i));
+      return s ? JSON.parse(s) : null;
+    } catch (e) { return null; }
+  };
+  GAME.saveNow = (opts) => {
     if (!GAME.save) return;
     GAME.save.ut = GAME.ut;
-    if (canStore) try { localStorage.setItem(LS_SAVE, JSON.stringify(GAME.save)); } catch (e) { }
+    GAME.save.saveSlot = GAME.activeSlot;
+    if (canStore) {
+      try { localStorage.setItem(slotKey(GAME.activeSlot), JSON.stringify(GAME.save)); } catch (e) { }
+      updateSlotMeta(GAME.activeSlot, opts);
+    }
   };
-  GAME.loadSave = () => {
-    if (!canStore) return null;
-    try { const s = localStorage.getItem(LS_SAVE); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+  GAME.loadSlot = (slot, opts) => {
+    const s = GAME.loadSave(slot);
+    if (!s) return null;
+    GAME.activeSlot = slot;
+    const meta = loadMeta();
+    meta.activeSlot = slot;
+    saveMeta(meta);
+    GAME.save = s;
+    GAME.ut = s.ut || 0;
+    if (opts && opts.mpFromSave != null) GAME.save.mpFromSave = opts.mpFromSave;
+    CAREER.migrate();
+    return s;
   };
-  GAME.wipeSave = () => { if (canStore) localStorage.removeItem(LS_SAVE); };
+  GAME.newGameInSlot = (slot, mode, cfg) => {
+    GAME.activeSlot = slot;
+    GAME.newGame(mode, cfg);
+  };
+  GAME.wipeSlot = (slot) => {
+    if (!canStore) return;
+    localStorage.removeItem(slotKey(slot));
+    const meta = loadMeta();
+    meta.slots[slot] = emptySlotMeta(slot);
+    if (meta.activeSlot === slot) {
+      const next = meta.slots.findIndex(s => !s.empty);
+      meta.activeSlot = next >= 0 ? next : 0;
+    }
+    saveMeta(meta);
+    if (GAME.activeSlot === slot) { GAME.save = null; GAME.ut = 0; }
+  };
+  GAME.wipeSave = () => {
+    if (!canStore) return;
+    for (let i = 0; i < NUM_SLOTS; i++) localStorage.removeItem(slotKey(i));
+    localStorage.removeItem(LS_SLOTS_META);
+    localStorage.removeItem(LS_SAVE_LEGACY);
+    GAME.save = null;
+    GAME.ut = 0;
+    GAME.activeSlot = 0;
+  };
+  GAME.autosaveLaunch = (phase, detail) => {
+    if (!GAME.save) return;
+    const tag = phase === 'pre' ? 'Pre-launch autosave' : 'Post-flight autosave';
+    GAME.saveNow({ label: detail ? tag + ' · ' + detail : tag });
+  };
+  GAME.fmtSlotTime = (ut) => {
+    const d = Math.floor((ut || 0) / 86400) + 1;
+    const h = Math.floor(((ut || 0) % 86400) / 3600);
+    return 'Day ' + d + ' · ' + h + 'h';
+  };
+  GAME.showSlotPicker = (opts) => {
+    opts = opts || {};
+    const meta = loadMeta();
+    const body = document.createElement('div');
+    body.innerHTML = `<div style="color:var(--dim);font-size:12.5px;margin-bottom:8px;line-height:1.45">${opts.hint || 'Select a save slot.'}</div><div class="slot-list" id="slot-list"></div>`;
+    const list = body.querySelector('#slot-list');
+    let picked = meta.activeSlot;
+    const syncMeta = () => {
+      const m = loadMeta();
+      meta.activeSlot = m.activeSlot;
+      meta.slots = m.slots;
+    };
+    const render = () => {
+      list.innerHTML = '';
+      for (let i = 0; i < NUM_SLOTS; i++) {
+        const sm = meta.slots[i];
+        const row = document.createElement('div');
+        row.className = 'slot-row' + (sm.empty ? ' slot-empty' : '') + (i === picked ? ' active' : '');
+        if (sm.empty) {
+          row.innerHTML = `<span class="slot-num">SLOT ${i + 1}</span><div class="slot-body"><div class="slot-name">Empty</div><div class="slot-meta">No save data</div></div>`;
+        } else {
+          const mode = String(sm.mode || 'campaign').toUpperCase();
+          const ag = sm.agencyName || 'Agency';
+          row.innerHTML = `<span class="slot-num">SLOT ${i + 1}</span><div class="slot-body">
+            <div class="slot-name">${ag}</div>
+            <div class="slot-meta">${mode} · ${GAME.fmtSlotTime(sm.ut)} · ${sm.flights || 0} flights · ${sm.crafts || 0} crafts</div>
+            <div class="slot-meta">${sm.label || ''}</div></div>
+            ${sm.mpSessionKey ? '<span class="slot-tag">MP</span>' : ''}`;
+        }
+        row.onclick = () => { AUDIO.click(); picked = i; render(); };
+        list.appendChild(row);
+      }
+    };
+    render();
+    const buttons = [{ label: 'CANCEL' }];
+    if (opts.mode === 'load') {
+      buttons.push({
+        label: 'LOAD', cls: 'acc', cb: () => {
+          const sm = meta.slots[picked];
+          if (sm.empty) { UI.toast('Empty slot', 'Nothing saved in that slot.', 'warn'); return; }
+          opts.onSelect && opts.onSelect(picked);
+        },
+      });
+      buttons.push({
+        label: 'DELETE', cls: 'danger', cb: () => {
+          const sm = meta.slots[picked];
+          if (sm.empty) return;
+          UI.confirm('DELETE SLOT', `Erase slot ${picked + 1}? This cannot be undone.`, () => {
+            GAME.wipeSlot(picked);
+            syncMeta();
+            render();
+          });
+        },
+      });
+    } else {
+      buttons.push({
+        label: opts.okLabel || 'SELECT', cls: 'acc', cb: () => {
+          const sm = meta.slots[picked];
+          if (!sm.empty && opts.confirmOverwrite !== false) {
+            UI.confirm('OVERWRITE SLOT', `Slot ${picked + 1} already has a save. Replace it?`, () => opts.onSelect && opts.onSelect(picked));
+          } else opts.onSelect && opts.onSelect(picked);
+        },
+      });
+    }
+    UI.dialog({ title: opts.title || 'SAVE SLOTS', body, buttons });
+  };
+  GAME.pickSaveSlot = (onSelect, opts) => GAME.showSlotPicker(Object.assign({ onSelect }, opts));
   function saveSettings() { if (canStore) try { localStorage.setItem(LS_SET, JSON.stringify(GAME.settings)); } catch (e) { } }
   function loadSettings() {
     if (!canStore) return;
@@ -87,8 +268,8 @@ Object.assign(window.GAME, {
     return tex;
   };
 
-  GAME.applyAgencyFlag = (root) => {
-    const flag = GAME.save && GAME.save.agency && GAME.save.agency.flag;
+  GAME.applyAgencyFlag = (root, flagOpt) => {
+    const flag = flagOpt || (GAME.save && GAME.save.agency && GAME.save.agency.flag);
     if (!flag || !root) return;
     const tex = GAME.agencyFlagTex(flag);
     root.traverse(o => {
@@ -109,11 +290,13 @@ Object.assign(window.GAME, {
       sciLog: {}, contracts: {}, crafts: {}, flights: [], debris: [], launchCount: {},
       ut: 0, stockAdded: false, cfg,
       site: { lat: -0.0018, lon: 0 }, siteChosen: false, agencyReady: false,
+      mpFromSave: false, mpSetupDone: false, mpSessionKey: null,
+      saveSlot: GAME.activeSlot,
     };
     GAME.ut = 5 * 3600;                      // pleasant morning at the space center
     CEL.setSite(GAME.save.site.lat, GAME.save.site.lon);
     CAREER.installStockCrafts();
-    GAME.saveNow();
+    GAME.saveNow({ label: 'New game' });
   };
 
   /* ---------- funds / science helpers ---------- */
@@ -298,7 +481,7 @@ Object.assign(window.GAME, {
       <div class="set-row"><label>Master volume</label><input id="set-vm" type="range" min="0" max="1" step="0.05" value="${GAME.settings.volMaster}"></div>
       <div class="set-row"><label>Sound effects</label><input id="set-vs" type="range" min="0" max="1" step="0.05" value="${GAME.settings.volSfx}"></div>
       <div class="set-row"><label>Music</label><input id="set-vmu" type="range" min="0" max="1" step="0.05" value="${GAME.settings.volMusic}"></div>
-      <div class="set-row"><label>Reset all progress</label><button class="btn danger" id="set-wipe">WIPE SAVE</button></div>
+      <div class="set-row"><label>Reset all progress</label><button class="btn danger" id="set-wipe">DELETE ALL SAVES</button></div>
       <div style="color:var(--dim);font-size:12.5px;margin-top:8px">Quality changes apply fully after returning to the space center.</div>`;
     const d = UI.dialog({ title: 'SETTINGS', body, buttons: [{ label: 'CLOSE', cls: 'acc' }] });
     body.querySelector('#set-q').onchange = e => { GAME.settings.quality = +e.target.value; saveSettings(); };
@@ -310,7 +493,7 @@ Object.assign(window.GAME, {
       saveSettings();
     };
     for (const id of ['#set-vm', '#set-vs', '#set-vmu']) body.querySelector(id).oninput = vol;
-    body.querySelector('#set-wipe').onclick = () => UI.confirm('WIPE SAVE', 'Delete all progress, crafts and flights?', () => { GAME.wipeSave(); location.reload(); });
+    body.querySelector('#set-wipe').onclick = () => UI.confirm('DELETE ALL SAVES', 'Erase all save slots? This cannot be undone.', () => { GAME.wipeSave(); location.reload(); });
   };
 
   /* ================= MAIN MENU screen ================= */
@@ -374,7 +557,7 @@ Object.assign(window.GAME, {
         this.plume.visible = false;
       }
       const cont = document.getElementById('btn-continue');
-      cont.classList.toggle('hidden', !GAME.loadSave());
+      cont.classList.toggle('hidden', !GAME.hasAnySave());
       AUDIO.music(true);
     },
 
@@ -626,6 +809,10 @@ Object.assign(window.GAME, {
     confirm(lat, lon) {
       GAME.save.site = { lat, lon };
       GAME.save.siteChosen = true;
+      if (this.mp) {
+        GAME.save.mpSetupDone = true;
+        if (window.NET && NET.sessionKey) GAME.save.mpSessionKey = NET.sessionKey();
+      }
       CEL.setSite(lat, lon);
       if (GAME.screens.sc.resetScene) GAME.screens.sc.resetScene();
       if (window.NET && NET.active) NET.broadcastSite(GAME.save.site);
@@ -791,30 +978,76 @@ Object.assign(window.GAME, {
     requestAnimationFrame(warm);
 
     /* menu buttons */
-    const startCampaign = () => GAME.showCampaignSetup(cfg => { GAME.newGame('campaign', cfg); GAME.go('agencysetup'); });
+    const startCampaign = (slot) => GAME.showCampaignSetup(cfg => { GAME.newGameInSlot(slot, 'campaign', cfg); GAME.go('agencysetup'); });
     document.getElementById('btn-campaign').onclick = () => {
       AUDIO.resume(); AUDIO.click();
-      const existing = GAME.loadSave();
-      if (existing && existing.mode === 'campaign') {
-        UI.confirm('NEW CAMPAIGN', 'Start fresh? Your existing campaign save will be replaced.', startCampaign);
-      } else startCampaign();
+      GAME.pickSaveSlot(slot => startCampaign(slot), {
+        title: 'CAMPAIGN — SELECT SLOT',
+        hint: 'Pick a slot for your new campaign. Existing saves in that slot will be replaced.',
+        okLabel: 'START CAMPAIGN',
+      });
     };
     document.getElementById('btn-sandbox').onclick = () => {
       AUDIO.resume(); AUDIO.click();
-      const existing = GAME.loadSave();
-      if (existing && existing.mode === 'sandbox') { GAME.save = existing; GAME.ut = existing.ut || 0; CAREER.migrate(); GAME.go('sc'); }
-      else if (existing) {
-        UI.confirm('NEW SANDBOX', 'Start a sandbox? Your existing save will be replaced.', () => { GAME.newGame('sandbox'); GAME.go('agencysetup'); });
-      } else { GAME.newGame('sandbox'); GAME.go('agencysetup'); }
+      GAME.pickSaveSlot(slot => {
+        const existing = GAME.loadSave(slot);
+        if (existing && existing.mode === 'sandbox') {
+          GAME.loadSlot(slot, { mpFromSave: false });
+          GAME.go('sc');
+        } else if (existing) {
+          UI.confirm('NEW SANDBOX', 'Replace the save in this slot with a new sandbox?', () => {
+            GAME.newGameInSlot(slot, 'sandbox');
+            GAME.go('agencysetup');
+          });
+        } else {
+          GAME.newGameInSlot(slot, 'sandbox');
+          GAME.go('agencysetup');
+        }
+      }, {
+        title: 'SANDBOX — SELECT SLOT',
+        hint: 'Pick a slot. If it already holds a sandbox, you can continue it; otherwise start fresh.',
+        confirmOverwrite: false,
+        okLabel: 'SELECT',
+      });
     };
     document.getElementById('btn-continue').onclick = () => {
       AUDIO.resume(); AUDIO.click();
-      const s = GAME.loadSave();
-      if (s) { GAME.save = s; GAME.ut = s.ut || 0; CAREER.migrate(); GAME.go('sc'); }
+      const meta = GAME.getSlotsMeta();
+      const sm = meta.slots[meta.activeSlot];
+      if (sm && !sm.empty) {
+        GAME.loadSlot(meta.activeSlot, { mpFromSave: true });
+        GAME.go('sc');
+        return;
+      }
+      GAME.showSlotPicker({
+        title: 'CONTINUE', mode: 'load',
+        hint: 'Your last active slot is empty — pick a slot to load.',
+        onSelect: (slot) => { GAME.loadSlot(slot, { mpFromSave: true }); GAME.go('sc'); },
+      });
+    };
+    document.getElementById('btn-load').onclick = () => {
+      AUDIO.resume(); AUDIO.click();
+      GAME.showSlotPicker({
+        title: 'LOAD GAME', mode: 'load',
+        hint: 'Load any save slot. Multiplayer uses the same slots and launch autosaves.',
+        onSelect: (slot) => { GAME.loadSlot(slot, { mpFromSave: true }); GAME.go('sc'); },
+      });
     };
     document.getElementById('btn-multi').onclick = () => {
       AUDIO.resume(); AUDIO.click();
-      if (!GAME.save) { const s = GAME.loadSave(); if (s) { GAME.save = s; GAME.ut = s.ut || 0; CAREER.migrate(); } else GAME.newGame('sandbox'); }
+      if (!GAME.save) {
+        const meta = GAME.getSlotsMeta();
+        const sm = meta.slots[meta.activeSlot];
+        if (sm && !sm.empty) GAME.loadSlot(meta.activeSlot, { mpFromSave: false });
+        else {
+          GAME.showSlotPicker({
+            title: 'MULTIPLAYER — SELECT SLOT', mode: 'load',
+            hint: 'Pick a save slot for this session. Progress and launch autosaves are stored here.',
+            onSelect: (slot) => { GAME.loadSlot(slot, { mpFromSave: false }); NET.openLobby(); },
+          });
+          return;
+        }
+      }
       NET.openLobby();
     };
     document.getElementById('btn-settings').onclick = () => { AUDIO.resume(); AUDIO.click(); GAME.showSettings(); };

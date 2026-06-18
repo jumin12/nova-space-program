@@ -58,7 +58,44 @@ const NET = (() => {
     CEL.clearRemoteSites();
   }
 
-  /* ---------- message handling ---------- */
+  /* ---------- MP session: fresh agency/site vs save/rejoin ---------- */
+  function mpSessionKey(url, room) { return (url || N.url || '') + '|' + (room || N.room || ''); }
+  function sessionKey() { return N.active ? mpSessionKey(N.url, N.room) : ''; }
+  function canSkipMpSetup(key) {
+    if (!GAME.save) return false;
+    if (GAME.save.mpFromSave && GAME.save.agencyReady && GAME.save.siteChosen) return true;
+    if (GAME.save.mpSessionKey === key && GAME.save.mpSetupDone && GAME.save.agencyReady && GAME.save.siteChosen) return true;
+    return false;
+  }
+  function prepareFreshMpSession(key) {
+    GAME.save.mpSessionKey = key;
+    GAME.save.mpSetupDone = false;
+    GAME.save.mpFromSave = false;
+    GAME.save.agencyReady = false;
+    GAME.save.siteChosen = false;
+    GAME.save.agency = null;
+    GAME.save.site = { lat: -0.0018, lon: 0 };
+    CEL.setSite(GAME.save.site.lat, GAME.save.site.lon);
+    CEL.clearRemoteSites();
+    GAME.saveNow();
+  }
+  function flushPresence() {
+    if (!N.active) return;
+    N.lastCraftSig = '';
+    if (GAME.save && GAME.save.siteChosen) broadcastSite(GAME.save.site);
+    if (GAME.currentName === 'flight' && window.__FLIGHT) {
+      const fl = window.__FLIGHT;
+      send({
+        t: 'state', s: {
+          name: fl.flightName, body: fl.body.id,
+          r: [fl.r.x, fl.r.y, fl.r.z], q: fl.quat.toArray(),
+          landed: fl.landed, alt: Math.round(fl.alt || 0), parts: fl.vessel.parts.size,
+        },
+      });
+      try { send({ t: 'craft', craft: fl.vessel.serialize() }); } catch (e) { /* pad only */ }
+    }
+  }
+
   function handle(m) {
     switch (m.t) {
       case 'rooms':
@@ -69,7 +106,7 @@ const NET = (() => {
         N.pendingJoin = null;
         N.room = m.room; N.mode = m.mode; N.active = true;
         if (pj) { N.name = pj.name; pj.onResult && pj.onResult(null, m.mode); }
-        if (GAME.save && GAME.save.siteChosen) broadcastSite(GAME.save.site);
+        flushPresence();
         UI.toast('Connected', `Session “${m.room}” · ${String(m.mode).toUpperCase()}`, 'sci');
         updateLobbyUi();
         break;
@@ -82,15 +119,24 @@ const NET = (() => {
         break;
       case 'roster': {
         const seen = new Set();
+        let anyNew = false;
         for (const p of m.players) {
           if (p.id === N.id) continue;
           seen.add(p.id);
+          const agencyData = p.agency && typeof p.agency === 'object' ? p.agency : null;
+          const agencyName = agencyData ? agencyData.name : (p.agency || '');
           if (!N.players.has(p.id)) {
-            N.players.set(p.id, { name: p.name, site: p.site, agency: p.agency, color: N.colors[N.players.size % N.colors.length] });
+            anyNew = true;
+            N.players.set(p.id, { name: p.name, site: p.site, agency: agencyData || agencyName, color: N.colors[N.players.size % N.colors.length] });
             UI.toast('Player joined', p.name, '');
-            if (p.site) CEL.addRemoteSite(p.site.lat, p.site.lon, p.name, p.agency);
-            /* introduce ourselves: share our craft right away */
+            if (p.site) CEL.addRemoteSite(p.site.lat, p.site.lon, p.name, agencyName, agencyData);
             N.lastCraftSig = '';
+          } else {
+            const ex = N.players.get(p.id);
+            ex.name = p.name;
+            ex.site = p.site;
+            ex.agency = agencyData || agencyName;
+            if (p.site) CEL.addRemoteSite(p.site.lat, p.site.lon, p.name, agencyName, agencyData);
           }
         }
         for (const id of [...N.players.keys()]) {
@@ -102,6 +148,7 @@ const NET = (() => {
             N.players.delete(id);
           }
         }
+        if (anyNew) flushPresence();
         updateLobbyUi();
         break;
       }
@@ -142,8 +189,10 @@ const NET = (() => {
         const p = N.players.get(m.id);
         if (p) {
           p.site = m.site;
-          if (m.agency) p.agency = m.agency;
-          CEL.addRemoteSite(m.site.lat, m.site.lon, p.name, m.agency || p.agency);
+          const agencyData = m.agency && typeof m.agency === 'object' ? m.agency : null;
+          const agencyName = agencyData ? agencyData.name : (m.agency || p.agency || '');
+          p.agency = agencyData || agencyName;
+          CEL.addRemoteSite(m.site.lat, m.site.lon, p.name, agencyName, agencyData);
         }
         break;
       }
@@ -160,10 +209,7 @@ const NET = (() => {
   function onTech(techId) { if (N.mode === 'coop') send({ t: 'coop', kind: 'tech', tech: techId }); }
   function onContract(c) { send({ t: 'milestone', name: c.name }); }
   function broadcastSite(site) {
-    send({
-      t: 'site', site,
-      agency: GAME.save && GAME.save.agency ? GAME.save.agency.name : '',
-    });
+    send({ t: 'site', site, agency: GAME.save && GAME.save.agency ? GAME.save.agency : '' });
   }
 
   /* ---------- remote launch complex visuals (map + flight) ---------- */
@@ -227,6 +273,7 @@ const NET = (() => {
       const entry = { ...m, name: st.name, grp: null };
       if (GAME.buildKSC && mv.meshes && mv.meshes.gaia) {
         entry.grp = GAME.buildKSC();
+        if (st.agencyData && st.agencyData.flag) GAME.applyAgencyFlag(entry.grp, st.agencyData.flag);
         mv.meshes.gaia.grp.add(entry.grp);
         entry.grp.visible = false;
       }
@@ -251,8 +298,42 @@ const NET = (() => {
       }
     }
   }
+  function syncPlanetRemoteKscs(planetGroup, remoteKscsMap, visible) {
+    if (!N.active || !planetGroup || !GAME.buildKSC) {
+      if (remoteKscsMap) {
+        for (const grp of remoteKscsMap.values()) {
+          if (grp.parent) grp.parent.remove(grp);
+        }
+        remoteKscsMap.clear();
+      }
+      return remoteKscsMap;
+    }
+    if (!remoteKscsMap) remoteKscsMap = new Map();
+    const remotes = CEL.remoteSites();
+    const names = new Set(remotes.map(s => s.name));
+    for (const [name, grp] of remoteKscsMap) {
+      if (!names.has(name)) {
+        planetGroup.remove(grp);
+        remoteKscsMap.delete(name);
+      }
+    }
+    for (const st of remotes) {
+      let grp = remoteKscsMap.get(st.name);
+      const bf = CEL.siteGroundBf(st.lat, st.lon, _svB);
+      if (!grp) {
+        grp = GAME.buildKSC();
+        if (st.agencyData && st.agencyData.flag) GAME.applyAgencyFlag(grp, st.agencyData.flag);
+        planetGroup.add(grp);
+        remoteKscsMap.set(st.name, grp);
+      }
+      grp.position.copy(bf);
+      grp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bf.clone().normalize());
+      grp.visible = visible;
+    }
+    return remoteKscsMap;
+  }
   function syncFlightRemoteKscs(fl) {
-    if (!N.active || fl.body !== CEL.GAIA || !GAME.buildKSC) {
+    if (!N.active || fl.body !== CEL.GAIA) {
       if (fl.remoteKscs) {
         for (const grp of fl.remoteKscs.values()) {
           if (grp.parent) grp.parent.remove(grp);
@@ -263,35 +344,26 @@ const NET = (() => {
     }
     const gaiaGrp = fl.views.gaia && fl.views.gaia.group;
     if (!gaiaGrp) return;
-    if (!fl.remoteKscs) fl.remoteKscs = new Map();
-    const remotes = CEL.remoteSites();
-    const names = new Set(remotes.map(s => s.name));
-    for (const [name, grp] of fl.remoteKscs) {
-      if (!names.has(name)) {
-        gaiaGrp.remove(grp);
-        fl.remoteKscs.delete(name);
+    fl.remoteKscs = syncPlanetRemoteKscs(gaiaGrp, fl.remoteKscs, true);
+  }
+  function syncScRemoteKscs(sc) {
+    if (!N.active || !sc.view || !sc.view.group) {
+      if (sc.remoteKscs) {
+        for (const grp of sc.remoteKscs.values()) {
+          if (grp.parent) grp.parent.remove(grp);
+        }
+        sc.remoteKscs = null;
       }
+      return;
     }
-    const show = fl.landed || (fl.alt ?? 0) < 120000;
-    for (const st of remotes) {
-      let grp = fl.remoteKscs.get(st.name);
-      const bf = CEL.siteGroundBf(st.lat, st.lon, _svB);
-      if (!grp) {
-        grp = GAME.buildKSC();
-        gaiaGrp.add(grp);
-        fl.remoteKscs.set(st.name, grp);
-      }
-      grp.position.copy(bf);
-      grp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bf.clone().normalize());
-      grp.visible = show;
-    }
+    sc.remoteKscs = syncPlanetRemoteKscs(sc.view.group, sc.remoteKscs, true);
   }
 
   /* ---------- flight integration: state + REAL vessel ghosts ---------- */
   const _g1 = new THREE.Vector3(), _g2 = new THREE.Vector3();
   function tickFlight(fl, dt) {
     N.sendAcc += dt;
-    if (N.sendAcc > 0.25) {
+    if (N.sendAcc > 0.15) {
       N.sendAcc = 0;
       send({
         t: 'state', s: {
@@ -301,11 +373,10 @@ const NET = (() => {
         },
       });
     }
-    /* craft sync: share our real ship whenever it changes (staging, docking, …) */
     N.craftAcc += dt;
-    if (N.craftAcc > 2) {
+    const sig = fl.vessel.parts.size + ':' + fl.vessel.root + ':' + fl.flightName;
+    if (N.craftAcc > 0.75 || sig !== N.lastCraftSig) {
       N.craftAcc = 0;
-      const sig = fl.vessel.parts.size + ':' + fl.vessel.root + ':' + fl.flightName;
       if (sig !== N.lastCraftSig) {
         N.lastCraftSig = sig;
         send({ t: 'craft', craft: fl.vessel.serialize() });
@@ -321,8 +392,9 @@ const NET = (() => {
       p.ghost.group.position.copy(gpos);
       p.ghost.group.quaternion.fromArray(s.q);
       const d = gpos.length();
-      p.ghost.label.position.copy(gpos);
-      p.ghost.label.position.y += Math.max(d * 0.04, 4);
+      const up = _g2.copy(gpos).normalize();
+      if (up.lengthSq() < 1e-8) up.set(0, 1, 0);
+      p.ghost.label.position.copy(gpos).addScaledVector(up, Math.max(d * 0.04, 4));
       const ls = Math.max(d * 0.045, 2.4);
       p.ghost.label.scale.set(ls * p.ghost.label.userData.aspect, ls, 1);
       p.ghost.glow.scale.setScalar(Math.max(d * 0.015, 2));
@@ -428,7 +500,7 @@ const NET = (() => {
       join(url, room, name, mode, pass, (err, actualMode) => {
         if (err) { status(err); return; }
         dlg.close();
-        afterJoin(actualMode || mode);
+        afterJoin(actualMode || mode, url, room);
       });
     };
     body.querySelector('#mp-browse').onclick = () => {
@@ -461,12 +533,21 @@ const NET = (() => {
       }, err => status(err));
     };
   }
-  function afterJoin(mode) {
+  function afterJoin(mode, url, room) {
+    const key = mpSessionKey(url, room);
     if (!GAME.save || (mode === 'sandbox') !== (GAME.save.mode === 'sandbox')) {
       GAME.newGame(mode === 'sandbox' ? 'sandbox' : 'campaign', GAME.save && GAME.save.cfg);
     }
-    if (!GAME.save.siteChosen) GAME.goAgencyOrSite(true);
-    else GAME.go('sc');
+    if (canSkipMpSetup(key)) {
+      GAME.save.mpSessionKey = key;
+      GAME.save.mpSetupDone = true;
+      GAME.saveNow();
+      flushPresence();
+      GAME.go('sc');
+      return;
+    }
+    prepareFreshMpSession(key);
+    GAME.goAgencyOrSite(true);
   }
   function updateLobbyUi() {
     const elx = document.getElementById('mp-roster');
@@ -482,7 +563,7 @@ const NET = (() => {
     get ws() { return N.ws; },
     open, join, listRooms, disconnect, openLobby, tickFlight, nearOther, clearGhosts,
     onScience, onFunds, onTech, onContract, broadcastSite, sendChat, updateLobbyUi,
-    syncMapSiteMarks, syncFlightRemoteKscs,
+    syncMapSiteMarks, syncFlightRemoteKscs, syncScRemoteKscs, flushPresence, sessionKey,
   };
 })();
 /* top-level const does NOT create window.NET — the in-game `window.NET &&` guards need it */

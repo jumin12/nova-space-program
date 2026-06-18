@@ -141,9 +141,14 @@ const CEL = (() => {
     /* terrain changed under the bake — old textures would show stale square patches */
     if (typeof PG !== 'undefined' && PG.invalidateBake) PG.invalidateBake('gaia');
   }
-  function addRemoteSite(lat, lon, name, agency) {
+  function addRemoteSite(lat, lon, name, agency, agencyData) {
     const i = sites.findIndex(s => !s.home && s.name === name);
-    const s = Object.assign(siteVectors(lat, lon), { home: false, bay: false, name, agency: agency || '' });
+    const agencyName = typeof agency === 'string' ? agency : (agency && agency.name) || '';
+    const s = Object.assign(siteVectors(lat, lon), {
+      home: false, bay: false, name,
+      agency: agencyName,
+      agencyData: agencyData || (typeof agency === 'object' ? agency : null),
+    });
     if (i >= 0) sites[i] = s;
     else sites.push(s);
     if (typeof PG !== 'undefined' && PG.invalidateBake) PG.invalidateBake('gaia');

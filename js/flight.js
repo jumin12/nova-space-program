@@ -174,6 +174,7 @@
       if (this.body === CEL.GAIA) this.ensureKsc();
       this.updateScene(0);
       this.updateCamera(0);
+      if (window.NET && NET.active && NET.flushPresence) NET.flushPresence();
       GAME.renderer.render(this.scene, this.cam);
     },
 
@@ -1370,7 +1371,7 @@
     },
     abandonFlight() {
       GAME.save.flights = GAME.save.flights.filter(x => x.fid !== this.fid);
-      GAME.saveNow();
+      GAME.autosaveLaunch('post', this.flightName || (this.vessel && this.vessel.name) || '');
     },
 
     spawnExplosion(scenePos, size) {
@@ -2145,7 +2146,7 @@
         GAME.save.flights = GAME.save.flights.filter(x => x.fid !== this.fid);
         GAME.save.flights.push(this.serializeFlight());
       }
-      GAME.saveNow();
+      GAME.autosaveLaunch('post', this.flightName || (this.vessel && this.vessel.name) || '');
       GAME.go(menu ? 'menu' : 'sc');
     },
 

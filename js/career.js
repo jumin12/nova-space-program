@@ -463,9 +463,14 @@ const CAREER = (() => {
     if (!s.cfg) s.cfg = GAME.defaultCfg ? GAME.defaultCfg('normal') : {};
     if (!s.site) s.site = { lat: -0.0018, lon: 0 };
     if (!s.agencyReady) {
-      s.agency = s.agency || GAME.defaultAgency();
-      s.agencyReady = true;
+      if (s.mpFromSave) {
+        s.agency = s.agency || GAME.defaultAgency();
+        s.agencyReady = true;
+      }
     }
+    if (s.mpFromSave === undefined) s.mpFromSave = false;
+    if (s.mpSetupDone === undefined) s.mpSetupDone = false;
+    if (s.saveSlot == null) s.saveSlot = GAME.activeSlot;
     CEL.setSite(s.site.lat, s.site.lon);
     refreshOffers();
     if (!s.stockAdded) installStockCrafts();

@@ -323,6 +323,18 @@ button{font-family:inherit;}
 .mp-room:last-child{border-bottom:none;}
 .mp-room-name{font-weight:700;font-size:14.5px;flex:1;}
 .mp-room-meta{color:var(--dim);font-size:12px;letter-spacing:.1em;}
+/* save slots */
+.slot-list{max-height:280px;overflow-y:auto;border:1px solid #1d2935;border-radius:5px;background:#0b1119;margin:8px 0;}
+.slot-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #15212c;cursor:pointer;pointer-events:all;}
+.slot-row:last-child{border-bottom:none;}
+.slot-row:hover{background:#121c28;}
+.slot-row.active{outline:1px solid var(--acc);background:#0f1a24;}
+.slot-num{font-weight:700;color:var(--acc);min-width:52px;font-size:13px;letter-spacing:.08em;}
+.slot-body{flex:1;min-width:0;}
+.slot-name{font-weight:700;font-size:14.5px;}
+.slot-meta{color:var(--dim);font-size:12px;margin-top:2px;letter-spacing:.04em;}
+.slot-empty .slot-name{color:var(--dim);font-weight:500;}
+.slot-tag{font-size:11px;color:var(--warn);letter-spacing:.1em;white-space:nowrap;}
 
 /* mission control tabs + offer cards */
 #mc-tabs{display:flex;gap:4px;margin-left:14px;}

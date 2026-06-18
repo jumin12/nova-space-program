@@ -378,7 +378,7 @@
       const hud = document.getElementById('hud-root');
       const ll = `${(CEL.KSC.lat / U.DEG).toFixed(1)}°, ${(CEL.KSC.lon / U.DEG).toFixed(1)}°`;
       const ag = (GAME.save.agency && GAME.save.agency.name) || 'AGENCY';
-      el('div', 'sc-name', hud, (GAME.save.siteChosen ? ag + ' · LC ' + ll : ag) + ' — GAIA');
+      el('div', 'sc-name', hud, (GAME.save.siteChosen ? ag + ' · LC ' + ll : ag) + ` — GAIA · SLOT ${GAME.activeSlot + 1}`);
       const warpHud = el('div', '', hud);
       warpHud.id = 'sc-warp';
       warpHud.style.cssText = 'position:absolute;top:54px;right:14px;display:flex;gap:4px;align-items:center;pointer-events:all;z-index:5';
@@ -446,6 +446,7 @@
           b.onclick = () => {
             dlg.close();
             GAME.spend(cost);
+            GAME.autosaveLaunch('pre', n);
             GAME.go('flight', { launch: GAME.save.crafts[n] });
           };
         }
@@ -538,6 +539,7 @@
       this.view.update(10);
       this.stars.update(this.cam.position, dayF * 1.3, dt);
       this.sunFx.update(sunDir.clone().multiplyScalar(5e6).add(this.cam.position), this.cam, sunDir.dot(up) > -0.12);
+      if (window.NET && NET.active && NET.syncScRemoteKscs) NET.syncScRemoteKscs(this);
       /* hover */
       this.ray.setFromCamera(this.mouse, this.cam);
       const hits = this.ray.intersectObjects(this.ksc.children, true);
@@ -567,6 +569,12 @@
       cv.removeEventListener('wheel', this._wheel);
       cv.removeEventListener('click', this._click);
       document.body.style.cursor = 'default';
+      if (this.remoteKscs) {
+        for (const grp of this.remoteKscs.values()) {
+          if (grp.parent) grp.parent.remove(grp);
+        }
+        this.remoteKscs = null;
+      }
     },
   };
   GAME.screens.sc = sc;

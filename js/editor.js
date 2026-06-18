@@ -556,6 +556,7 @@
       this.saveCraft(false);
       GAME.spend(cost);
       AUDIO.click();
+      GAME.autosaveLaunch('pre', this.vessel.name);
       GAME.go('flight', { launch: this.vessel.serialize() });
     },
 
