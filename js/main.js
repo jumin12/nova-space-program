@@ -195,15 +195,8 @@ Object.assign(window.GAME, {
       });
     } else if (opts.mode === 'mp') {
       buttons.push({
-        label: 'CONTINUE', cls: 'acc', cb: () => {
-          const sm = meta.slots[picked];
-          if (sm.empty) { UI.toast('Empty slot', 'Pick NEW GAME to start fresh in this slot.', 'warn'); return; }
-          opts.onContinue && opts.onContinue(picked);
-        },
-      });
-      buttons.push({
-        label: 'NEW GAME', cb: () => {
-          opts.onNew && opts.onNew(picked);
+        label: 'START', cls: 'acc', cb: () => {
+          opts.onStart && opts.onStart(picked);
         },
       });
     } else {
@@ -223,21 +216,16 @@ Object.assign(window.GAME, {
     GAME.showSlotPicker({
       title: 'MULTIPLAYER — SELECT SLOT',
       mode: 'mp',
-      hint: 'Continue an existing save or start a new one in any slot. You will create your agency and launch site when you join a session.',
-      onContinue: (slot) => {
-        GAME.loadSlot(slot, { mpFromSave: true });
-        NET.openLobby();
-      },
-      onNew: (slot) => {
-        const existing = GAME.loadSave(slot);
-        const startFresh = () => {
+      hint: 'Select a save slot and press START. Empty slots begin a new game; occupied slots continue your progress.',
+      onStart: (slot) => {
+        const sm = GAME.getSlotsMeta().slots[slot];
+        if (sm.empty) {
           GAME.newGameInSlot(slot, 'sandbox');
           GAME.save.mpFromSave = false;
-          NET.openLobby();
-        };
-        if (existing) {
-          UI.confirm('NEW MULTIPLAYER SAVE', `Replace the save in slot ${slot + 1} with a fresh game?`, startFresh);
-        } else startFresh();
+        } else {
+          GAME.loadSlot(slot, { mpFromSave: true });
+        }
+        NET.openLobby();
       },
     });
   };
@@ -1057,14 +1045,6 @@ Object.assign(window.GAME, {
       GAME.showSlotPicker({
         title: 'CONTINUE', mode: 'load',
         hint: 'Your last active slot is empty — pick a slot to load.',
-        onSelect: (slot) => { GAME.loadSlot(slot, { mpFromSave: true }); GAME.go('sc'); },
-      });
-    };
-    document.getElementById('btn-load').onclick = () => {
-      AUDIO.resume(); AUDIO.click();
-      GAME.showSlotPicker({
-        title: 'LOAD GAME', mode: 'load',
-        hint: 'Load any save slot. Multiplayer uses the same slots and launch autosaves.',
         onSelect: (slot) => { GAME.loadSlot(slot, { mpFromSave: true }); GAME.go('sc'); },
       });
     };
