@@ -142,11 +142,21 @@ const CEL = (() => {
     if (typeof PG !== 'undefined' && PG.invalidateBake) PG.invalidateBake('gaia');
   }
   function addRemoteSite(lat, lon, name) {
+    const i = sites.findIndex(s => !s.home && s.name === name);
     const s = Object.assign(siteVectors(lat, lon), { home: false, bay: false, name });
-    sites.push(s);
+    if (i >= 0) sites[i] = s;
+    else sites.push(s);
+    if (typeof PG !== 'undefined' && PG.invalidateBake) PG.invalidateBake('gaia');
     return s;
   }
-  function clearRemoteSites() { sites.length = 1; }
+  function removeRemoteSite(name) {
+    const i = sites.findIndex(s => !s.home && s.name === name);
+    if (i < 0) return;
+    sites.splice(i, 1);
+    if (typeof PG !== 'undefined' && PG.invalidateBake) PG.invalidateBake('gaia');
+  }
+  function clearRemoteSites() { sites.length = sites[0] ? 1 : 0; }
+  function remoteSites() { return sites.filter(s => !s.home); }
 
   /* ============ radiation environment (rad/h) ============ */
   const RAD_CFG = {
@@ -590,5 +600,5 @@ const CEL = (() => {
   }
 
   const NSC = KSC;
-  return { B, list, GAIA, SUN, KSC, NSC, BELT, RAD_CFG, sites, setSite, syncSiteAlt, addRemoteSite, clearRemoteSites, adjustSiteHeight, radiationAt, stormAt, TIME_DAY, TIME_YEAR, heightAt, biomeAt, atmoDensity, atmoPressure, spinAngle, bfToInertial, inertialToBf, latLonToBf, bfToLatLon, siteGroundBf, sitePadBf, spinOmega, situation };
+  return { B, list, GAIA, SUN, KSC, NSC, BELT, RAD_CFG, sites, setSite, syncSiteAlt, addRemoteSite, removeRemoteSite, clearRemoteSites, remoteSites, adjustSiteHeight, radiationAt, stormAt, TIME_DAY, TIME_YEAR, heightAt, biomeAt, atmoDensity, atmoPressure, spinAngle, bfToInertial, inertialToBf, latLonToBf, bfToLatLon, siteGroundBf, sitePadBf, spinOmega, situation };
 })();

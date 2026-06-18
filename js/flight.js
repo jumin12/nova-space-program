@@ -128,6 +128,7 @@
       this.vGroup = null;
       this.meshes = null;
       this.ksc = null;
+      this.remoteKscs = null;
       this.padSmokePos = null;
       this.padSmokeBody = null;
 
@@ -2525,6 +2526,7 @@
       for (const b of CEL.list) this.views[b.id].update(b === this.body ? (qLen > 30 ? 9 : 5) : 1.2);
       /* KSC buildings — show on pad & near surface (alt unset while landed used to hide pad until staging) */
       if (this.body === CEL.GAIA && !this.ksc && (this.landed || (this.alt ?? 0) < 120000)) this.ensureKsc();
+      if (window.NET) NET.syncFlightRemoteKscs(this);
       /* atmosphere ambience */
       const up = _a.copy(this.r).normalize();
       const altScene = this.alt ?? Math.max(this.r.length() - this.body.R, 0);

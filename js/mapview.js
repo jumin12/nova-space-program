@@ -352,10 +352,16 @@ const MAPVIEW = (() => {
         this.scene.remove(this.facilityMark); this.scene.remove(this.facilityRing);
         this.scene.remove(this.facilityLabel); this.scene.remove(this.focusRing);
       }
+      if (this.remoteSiteMarks) {
+        for (const rm of this.remoteSiteMarks) {
+          this.scene.remove(rm.mark, rm.ring, rm.label);
+          if (rm.grp && rm.grp.parent) rm.grp.parent.remove(rm.grp);
+        }
+      }
       if (this.facilityGrp) this.facilityGrp.visible = false;
       this.fleetMarks = []; this.fleetLines = [];
       this.debrisMarks = [];
-      this.facilityMark = null; this.facilityRing = null; this.facilityLabel = null; this.focusRing = null;
+      this.remoteSiteMarks = null;
     },
     onClickStandalone(e) {
       const t = GAME.ut;
@@ -471,6 +477,7 @@ const MAPVIEW = (() => {
         this.facilityRing.visible = showFac;
         this.facilityLabel.visible = showFac;
       }
+      if (window.NET) NET.syncMapSiteMarks(this, t, fAbs);
       const focusMesh = this.meshes[focusB.id];
       if (this.focusRing && focusMesh) {
         const showRing = this.camDist < focusB.R * 6;
@@ -769,6 +776,7 @@ const MAPVIEW = (() => {
         this.eLine.visible = false;
         this.encM.visible = false;
       }
+      if (window.NET) NET.syncMapSiteMarks(this, t, fAbs);
       GAME.renderer.render(this.scene, this.cam);
     },
     setMarkerText(sp, key, txt, color) {

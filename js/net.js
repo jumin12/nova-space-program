@@ -28,6 +28,7 @@ const NET = (() => {
         N.active = false;
         clearGhosts();
         N.players.clear();
+        CEL.clearRemoteSites();
         updateLobbyUi();
       };
       ws.onmessage = ev => {
@@ -54,6 +55,7 @@ const NET = (() => {
     N.active = false;
     clearGhosts();
     N.players.clear();
+    CEL.clearRemoteSites();
   }
 
   /* ---------- message handling ---------- */
@@ -67,6 +69,7 @@ const NET = (() => {
         N.pendingJoin = null;
         N.room = m.room; N.mode = m.mode; N.active = true;
         if (pj) { N.name = pj.name; pj.onResult && pj.onResult(null, m.mode); }
+        if (GAME.save && GAME.save.siteChosen) broadcastSite(GAME.save.site);
         UI.toast('Connected', `Session “${m.room}” · ${String(m.mode).toUpperCase()}`, 'sci');
         updateLobbyUi();
         break;
@@ -94,6 +97,7 @@ const NET = (() => {
           if (!seen.has(id)) {
             const p = N.players.get(id);
             UI.toast('Player left', p.name, '');
+            if (p.name) CEL.removeRemoteSite(p.name);
             dropGhost(p);
             N.players.delete(id);
           }
@@ -152,6 +156,127 @@ const NET = (() => {
   function onTech(techId) { if (N.mode === 'coop') send({ t: 'coop', kind: 'tech', tech: techId }); }
   function onContract(c) { send({ t: 'milestone', name: c.name }); }
   function broadcastSite(site) { send({ t: 'site', site }); }
+
+  /* ---------- remote launch complex visuals (map + flight) ---------- */
+  const _svA = new THREE.Vector3(), _svB = new THREE.Vector3(), _svC = new THREE.Vector3();
+  function playerColor(name) {
+    for (const p of N.players.values()) if (p.name === name) return p.color;
+    return '#ffb454';
+  }
+  function makeSiteMark(color, labelText) {
+    const mark = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: PG.glowTex([[0, color], [0.2, color + 'cc'], [0.45, color + '66'], [1, color + '00']], 64),
+      transparent: true, depthTest: false, blending: THREE.AdditiveBlending,
+    }));
+    mark.renderOrder = 24;
+    const ring = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: PG.glowTex([[0, 'rgba(255,180,80,0)'], [0.55, color + '55'], [0.72, color + '22'], [1, color + '00']], 96),
+      transparent: true, depthTest: false, blending: THREE.AdditiveBlending,
+    }));
+    ring.renderOrder = 23;
+    const label = U.textSprite(labelText, { size: 34, color, bg: 'rgba(6,14,22,0.72)' });
+    label.renderOrder = 24;
+    return { mark, ring, label };
+  }
+  function placeSiteMark(mark, ring, label, lat, lon, t, fAbs, cam, gaiaNear) {
+    const bf = CEL.sitePadBf(lat, lon, _svB);
+    ORB.bodyAbsPos(CEL.GAIA, t, _svA).sub(fAbs);
+    CEL.bfToInertial(CEL.GAIA, bf, t, _svC);
+    _svA.add(_svC);
+    const surfN = _svC.clone().normalize();
+    mark.position.copy(_svA);
+    const fd = Math.max(_svA.distanceTo(cam.position), 1);
+    const markScale = gaiaNear ? fd * 0.034 : fd * 0.02;
+    mark.scale.setScalar(markScale);
+    ring.position.copy(_svA);
+    ring.scale.setScalar(markScale * 2.8);
+    const lift = gaiaNear ? fd * 0.014 : fd * 0.032;
+    label.position.copy(_svA).addScaledVector(surfN, lift);
+    const lbl = gaiaNear ? fd * 0.038 : fd * 0.03;
+    label.scale.set(lbl * label.userData.aspect, lbl, 1);
+    const show = gaiaNear || fd < CEL.GAIA.R * 16;
+    mark.visible = ring.visible = label.visible = show;
+  }
+  function syncMapSiteMarks(mv, t, fAbs) {
+    if (!N.active) {
+      if (mv.remoteSiteMarks) {
+        for (const rm of mv.remoteSiteMarks) {
+          mv.scene.remove(rm.mark, rm.ring, rm.label);
+          if (rm.grp && rm.grp.parent) rm.grp.parent.remove(rm.grp);
+        }
+        mv.remoteSiteMarks = null;
+      }
+      return;
+    }
+    const remotes = CEL.remoteSites();
+    if (!mv.remoteSiteMarks) mv.remoteSiteMarks = [];
+    while (mv.remoteSiteMarks.length < remotes.length) {
+      const st = remotes[mv.remoteSiteMarks.length];
+      const color = playerColor(st.name);
+      const m = makeSiteMark(color, st.name + ' · LC');
+      mv.scene.add(m.mark, m.ring, m.label);
+      const entry = { ...m, name: st.name, grp: null };
+      if (GAME.buildKSC && mv.meshes && mv.meshes.gaia) {
+        entry.grp = GAME.buildKSC();
+        mv.meshes.gaia.grp.add(entry.grp);
+        entry.grp.visible = false;
+      }
+      mv.remoteSiteMarks.push(entry);
+    }
+    while (mv.remoteSiteMarks.length > remotes.length) {
+      const rm = mv.remoteSiteMarks.pop();
+      mv.scene.remove(rm.mark, rm.ring, rm.label);
+      if (rm.grp && rm.grp.parent) rm.grp.parent.remove(rm.grp);
+    }
+    const gaiaNear = mv.focus === 'gaia' && mv.camDist < CEL.GAIA.R * 5;
+    for (let i = 0; i < remotes.length; i++) {
+      const st = remotes[i];
+      const rm = mv.remoteSiteMarks[i];
+      rm.name = st.name;
+      placeSiteMark(rm.mark, rm.ring, rm.label, st.lat, st.lon, t, fAbs, mv.cam, gaiaNear);
+      if (rm.grp) {
+        const bf = CEL.siteGroundBf(st.lat, st.lon, _svB);
+        rm.grp.position.copy(bf);
+        rm.grp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bf.clone().normalize());
+        rm.grp.visible = mv.focus === 'gaia' && mv.camDist < CEL.GAIA.R * 0.018;
+      }
+    }
+  }
+  function syncFlightRemoteKscs(fl) {
+    if (!N.active || fl.body !== CEL.GAIA || !GAME.buildKSC) {
+      if (fl.remoteKscs) {
+        for (const grp of fl.remoteKscs.values()) {
+          if (grp.parent) grp.parent.remove(grp);
+        }
+        fl.remoteKscs = null;
+      }
+      return;
+    }
+    const gaiaGrp = fl.views.gaia && fl.views.gaia.group;
+    if (!gaiaGrp) return;
+    if (!fl.remoteKscs) fl.remoteKscs = new Map();
+    const remotes = CEL.remoteSites();
+    const names = new Set(remotes.map(s => s.name));
+    for (const [name, grp] of fl.remoteKscs) {
+      if (!names.has(name)) {
+        gaiaGrp.remove(grp);
+        fl.remoteKscs.delete(name);
+      }
+    }
+    const show = fl.landed || (fl.alt ?? 0) < 120000;
+    for (const st of remotes) {
+      let grp = fl.remoteKscs.get(st.name);
+      const bf = CEL.siteGroundBf(st.lat, st.lon, _svB);
+      if (!grp) {
+        grp = GAME.buildKSC();
+        gaiaGrp.add(grp);
+        fl.remoteKscs.set(st.name, grp);
+      }
+      grp.position.copy(bf);
+      grp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bf.clone().normalize());
+      grp.visible = show;
+    }
+  }
 
   /* ---------- flight integration: state + REAL vessel ghosts ---------- */
   const _g1 = new THREE.Vector3(), _g2 = new THREE.Vector3();
@@ -348,6 +473,7 @@ const NET = (() => {
     get ws() { return N.ws; },
     open, join, listRooms, disconnect, openLobby, tickFlight, nearOther, clearGhosts,
     onScience, onFunds, onTech, onContract, broadcastSite, sendChat, updateLobbyUi,
+    syncMapSiteMarks, syncFlightRemoteKscs,
   };
 })();
 /* top-level const does NOT create window.NET — the in-game `window.NET &&` guards need it */

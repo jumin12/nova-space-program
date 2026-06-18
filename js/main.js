@@ -411,10 +411,8 @@ Object.assign(window.GAME, {
         <div class="sp-sub">Click anywhere on land to found your complex.${this.mp ? ' Other players will see your site.' : ''} Equatorial sites make orbital launches cheapest; polar sites see the auroras.</div>
         <div class="sp-info mono" id="sp-info">—</div>
         <div class="sp-actions">
-          <button class="btn" id="sp-default">USE CLASSIC SITE</button>
           <button class="btn acc" id="sp-go" disabled>FOUND COMPLEX HERE</button>
         </div>`;
-      this.ui.querySelector('#sp-default').onclick = () => { AUDIO.click(); this.confirm(-0.0018, 0); };
       this.ui.querySelector('#sp-go').onclick = () => { AUDIO.click(); if (this.picked) this.confirm(this.picked.lat, this.picked.lon); };
       const cv = GAME.renderer.domElement;
       this._down = e => { this.drag = true; this.moved = false; this.lx = e.clientX; this.ly = e.clientY; };
