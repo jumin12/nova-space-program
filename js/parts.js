@@ -1176,5 +1176,6 @@ const PARTS = (() => {
     return url;
   }
 
-  return { CATALOG, CATEGORIES, RESOURCES, SIZES, build, thumbnail, setChuteLine, M, buildAstronaut, PANEL };
+  return { CATALOG, CATEGORIES, RESOURCES, SIZES, build, thumbnail, setChuteLine, M, buildAstronaut, PANEL,
+    _invalidateOverride(ids) { for (const id of ids) delete templates[id]; } };
 })();

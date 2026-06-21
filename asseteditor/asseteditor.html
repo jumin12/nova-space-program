@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOVA Asset Editor</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="editor.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="ui">
+  <div id="left" class="panel">
+    <h2>Game parts</h2>
+    <input id="cat-search" type="text" placeholder="Search parts…" spellcheck="false">
+    <div id="cat-tabs"></div>
+    <div id="catalog"></div>
+    <h3>Export queue <span id="export-count" class="badge">0</span></h3>
+    <div id="export-list"></div>
+    <div class="row">
+      <button class="btn acc tiny" id="btn-queue">+ Queue current</button>
+      <button class="btn tiny" id="btn-clear-queue">Clear</button>
+    </div>
+  </div>
+  <div id="top" class="panel">
+    <span id="part-title" class="part-title">Select a part</span>
+    <button class="btn acc on" data-tool="select">SELECT</button>
+    <button class="btn" data-tool="move">MOVE</button>
+    <button class="btn" data-tool="rotate">ROTATE</button>
+    <button class="btn" data-tool="scale">SCALE</button>
+    <span class="sep"></span>
+    <button class="btn tiny on" id="snap-btn">SNAP</button>
+    <span class="sep"></span>
+    <button class="btn" id="btn-explode">EXPLODE TO EDIT</button>
+    <button class="btn" id="btn-reset-mesh">RESET MESH</button>
+    <button class="btn" id="btn-import-json">IMPORT</button>
+    <button class="btn acc" id="btn-export-game">EXPORT TO GAME</button>
+    <input type="file" id="file-import" accept=".json,application/json" hidden>
+  </div>
+  <div id="right" class="panel">
+    <h2>Part stats</h2>
+    <div id="stats" class="mono dim">Select a part from the catalog.</div>
+    <h2>Primitives</h2>
+    <div id="palette" class="pal-grid"></div>
+    <h2>Effects</h2>
+    <div class="row">
+      <button class="btn tiny" data-fx="pointLight">+ Light</button>
+      <button class="btn tiny" data-fx="emissive">+ Blink lamp</button>
+    </div>
+    <h2>Outliner</h2>
+    <div id="outliner"></div>
+    <h2 id="sel-title">Selection</h2>
+    <div id="props"></div>
+  </div>
+  <div id="bottom" class="panel">
+    Edit a game part mesh, queue changes, then <b>EXPORT TO GAME</b> — saves <code>js/generated-part-builds.js</code> so overrides load on next game start.
+    Right-drag orbit · Wheel zoom · Middle pan · Q/E rotate · F height · Del delete · Ctrl+D duplicate
+  </div>
+</div>
+<div id="toast"></div>
+<script src="../vendor/three.min.js"></script>
+<script src="../js/utils.js"></script>
+<script src="../js/parts.js"></script>
+<script src="../js/generated-part-builds.js"></script>
+<script src="../js/part-overrides.js"></script>
+<script src="editor.js"></script>
+</body>
+</html>
